@@ -1,5 +1,5 @@
 /**
- * Theme definitions for StringPath
+ * Theme definitions for Serpentine
  * 
  * Built from the three-tier design token system:
  * - Primitives: Raw color values (tokens.ts)

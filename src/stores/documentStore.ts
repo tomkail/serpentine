@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Shape, StringPathDocument, CircleShape } from '../types'
+import type { Shape, SerpentineDocument, CircleShape } from '../types'
 import { createCircle } from '../geometry/shapes/Circle'
 
 interface DocumentState {
@@ -9,6 +9,8 @@ interface DocumentState {
   shapeOrder: string[]
   globalStretch: number  // Project-level stretch (-1 to 1, 0 = circular)
   closedPath: boolean    // Whether the path loops back to start
+  useStartPoint: boolean // Whether to use tangent point on first circle (when not looping)
+  useEndPoint: boolean   // Whether to use tangent point on last circle (when not looping)
   fileName: string | null
   
   // Actions
@@ -37,13 +39,17 @@ interface DocumentState {
   toggleMirror: (id: string) => void
   toggleClosedPath: () => void
   setClosedPath: (closed: boolean) => void
+  toggleUseStartPoint: () => void
+  setUseStartPoint: (use: boolean) => void
+  toggleUseEndPoint: () => void
+  setUseEndPoint: (use: boolean) => void
   reset: () => void
-  loadDocument: (data: StringPathDocument) => void
+  loadDocument: (data: SerpentineDocument) => void
   setFileName: (name: string | null) => void
 }
 
 // Default starting document with a few circles
-const createDefaultDocument = (): Pick<DocumentState, 'shapes' | 'shapeOrder' | 'globalStretch' | 'closedPath' | 'fileName'> => {
+const createDefaultDocument = (): Pick<DocumentState, 'shapes' | 'shapeOrder' | 'globalStretch' | 'closedPath' | 'useStartPoint' | 'useEndPoint' | 'fileName'> => {
   const c1 = createCircle({ x: 200, y: 200 }, 60, undefined, 'Circle 1')
   const c2 = createCircle({ x: 400, y: 150 }, 40, undefined, 'Circle 2')
   const c3 = createCircle({ x: 350, y: 350 }, 70, undefined, 'Circle 3')
@@ -53,6 +59,8 @@ const createDefaultDocument = (): Pick<DocumentState, 'shapes' | 'shapeOrder' | 
     shapeOrder: [c1.id, c2.id, c3.id],
     globalStretch: 0,  // 0 = circular arcs (no stretch)
     closedPath: true,  // Path loops by default
+    useStartPoint: true, // Use tangent point on first circle by default
+    useEndPoint: true,   // Use tangent point on last circle by default
     fileName: null
   }
 }
@@ -84,10 +92,17 @@ export const useDocumentStore = create<DocumentState>()(
         )
       })),
       
-      removeShape: (id) => set((state) => ({
-        shapes: state.shapes.filter(shape => shape.id !== id),
-        shapeOrder: state.shapeOrder.filter(shapeId => shapeId !== id)
-      })),
+      removeShape: (id) => set((state) => {
+        // Prevent removal if it would leave fewer than 2 circles
+        const circleCount = state.shapes.filter(s => s.type === 'circle').length
+        if (circleCount <= 2) {
+          return state // No change - must keep at least 2 circles
+        }
+        return {
+          shapes: state.shapes.filter(shape => shape.id !== id),
+          shapeOrder: state.shapeOrder.filter(shapeId => shapeId !== id)
+        }
+      }),
       
       reorderShapes: (newOrder) => set({ shapeOrder: newOrder }),
       
@@ -211,6 +226,18 @@ export const useDocumentStore = create<DocumentState>()(
       
       setClosedPath: (closed) => set({ closedPath: closed }),
       
+      toggleUseStartPoint: () => set((state) => ({
+        useStartPoint: !state.useStartPoint
+      })),
+      
+      setUseStartPoint: (use) => set({ useStartPoint: use }),
+      
+      toggleUseEndPoint: () => set((state) => ({
+        useEndPoint: !state.useEndPoint
+      })),
+      
+      setUseEndPoint: (use) => set({ useEndPoint: use }),
+      
       reset: () => set(createDefaultDocument()),
       
       loadDocument: (data) => set({
@@ -238,18 +265,22 @@ export const useDocumentStore = create<DocumentState>()(
           return 0
         })(),
         closedPath: data.settings?.closedPath ?? true,  // Default to closed for backwards compatibility
+        useStartPoint: data.settings?.useStartPoint ?? true,  // Default to true for backwards compatibility
+        useEndPoint: data.settings?.useEndPoint ?? true,  // Default to true for backwards compatibility
         fileName: data.name
       }),
       
       setFileName: (name) => set({ fileName: name })
     }),
     {
-      name: 'stringpath-document',
+      name: 'serpentine-document',
       partialize: (state) => ({
         shapes: state.shapes,
         shapeOrder: state.shapeOrder,
         globalStretch: state.globalStretch,
         closedPath: state.closedPath,
+        useStartPoint: state.useStartPoint,
+        useEndPoint: state.useEndPoint,
         fileName: state.fileName
       }),
       // Migrate old data
@@ -262,6 +293,9 @@ export const useDocumentStore = create<DocumentState>()(
           globalStretch: persisted.globalStretch ?? persisted.globalFling ?? (persisted.globalTension !== undefined ? 1 - persisted.globalTension : currentState.globalStretch),
           // Default closedPath to true for backwards compatibility
           closedPath: persisted.closedPath ?? true,
+          // Default start/end point settings to true for backwards compatibility
+          useStartPoint: persisted.useStartPoint ?? true,
+          useEndPoint: persisted.useEndPoint ?? true,
           // Ensure all shapes have wrapSide property and migrate to stretch
           shapes: (persisted.shapes ?? currentState.shapes).map(shape => ({
             ...shape,

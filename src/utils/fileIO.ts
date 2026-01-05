@@ -1,8 +1,9 @@
-import type { StringPathDocument, Shape, Point } from '../types'
+import type { SerpentineDocument, Shape, Point } from '../types'
 import { useDocumentStore } from '../stores/documentStore'
 import { useViewportStore } from '../stores/viewportStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useNotificationStore, reportError } from '../stores/notificationStore'
+import { fitToView } from './viewportActions'
 
 /**
  * Create a new document (reset to defaults)
@@ -35,7 +36,7 @@ export function saveDocument(): void {
     const viewportState = useViewportStore.getState()
     const settingsState = useSettingsStore.getState()
     
-    const doc: StringPathDocument = {
+    const doc: SerpentineDocument = {
       version: 1,
       name: docState.fileName || 'Untitled',
       created: new Date().toISOString(),
@@ -43,7 +44,9 @@ export function saveDocument(): void {
       settings: {
         gridSize: settingsState.gridSize,
         globalStretch: docState.globalStretch,
-        closedPath: docState.closedPath
+        closedPath: docState.closedPath,
+        useStartPoint: docState.useStartPoint,
+        useEndPoint: docState.useEndPoint
       },
       viewport: {
         pan: viewportState.pan,
@@ -59,13 +62,13 @@ export function saveDocument(): void {
     
     const a = window.document.createElement('a')
     a.href = url
-    a.download = `${doc.name.replace(/[^a-z0-9]/gi, '_')}.stringpath`
+    a.download = `${doc.name.replace(/[^a-z0-9]/gi, '_')}.serpentine`
     window.document.body.appendChild(a)
     a.click()
     window.document.body.removeChild(a)
     URL.revokeObjectURL(url)
     
-    useNotificationStore.getState().success('Document saved', `${doc.name}.stringpath`)
+    useNotificationStore.getState().success('Document saved', `${doc.name}.serpentine`)
   } catch (error) {
     reportError(error, 'Failed to save document')
   }
@@ -78,7 +81,7 @@ export function loadDocument(): void {
   try {
     const input = window.document.createElement('input')
     input.type = 'file'
-    input.accept = '.stringpath,.json'
+    input.accept = '.serpentine,.stringpath,.json'
     
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
@@ -87,9 +90,9 @@ export function loadDocument(): void {
       try {
         const text = await file.text()
         
-        let data: StringPathDocument
+        let data: SerpentineDocument
         try {
-          data = JSON.parse(text) as StringPathDocument
+          data = JSON.parse(text) as SerpentineDocument
         } catch (parseError) {
           throw new Error('Invalid JSON format. Please check the file is not corrupted.')
         }
@@ -103,13 +106,6 @@ export function loadDocument(): void {
         // Load into stores
         useDocumentStore.getState().loadDocument(data)
         
-        if (data.viewport) {
-          useViewportStore.setState({
-            pan: data.viewport.pan,
-            zoom: data.viewport.zoom
-          })
-        }
-        
         if (data.settings) {
           useSettingsStore.setState({
             gridSize: data.settings.gridSize
@@ -117,6 +113,13 @@ export function loadDocument(): void {
         }
         
         useDocumentStore.getState().setFileName(data.name)
+        
+        // Always fit to view when loading a document
+        // Use requestAnimationFrame to ensure canvas dimensions are updated
+        requestAnimationFrame(() => {
+          fitToView(true)
+        })
+        
         useNotificationStore.getState().success('Document loaded', file.name)
         
       } catch (err) {
@@ -138,7 +141,7 @@ function validateDocument(data: unknown): string | null {
     return 'Document is empty or invalid'
   }
   
-  const doc = data as Partial<StringPathDocument>
+  const doc = data as Partial<SerpentineDocument>
   
   // Check required fields
   if (typeof doc.version !== 'number') {
@@ -146,7 +149,7 @@ function validateDocument(data: unknown): string | null {
   }
   
   if (doc.version > 1) {
-    return `Document version ${doc.version} is not supported. Please update StringPath.`
+    return `Document version ${doc.version} is not supported. Please update Serpentine.`
   }
   
   if (!Array.isArray(doc.shapes)) {

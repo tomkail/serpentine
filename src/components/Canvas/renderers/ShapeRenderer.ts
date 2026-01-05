@@ -2,6 +2,7 @@ import type { Shape, CircleShape, Point, CanvasTheme, HoverTarget } from '../../
 import { getTangentForWrapSides } from '../../../geometry/tangent'
 import { pointOnCircle, distance } from '../../../geometry/math'
 import { getMirroredCircles, createMirroredCircle, expandMirroredCircles } from '../../../geometry/path'
+import { drawMirrorIconCanvas, drawDeleteIconCanvas } from '../../icons/Icons'
 import {
   EDGE_OUTER,
   EDGE_INNER,
@@ -16,8 +17,9 @@ import {
   CHEVRON_MIN_SCREEN_SIZE,
   CHEVRON_MAX_SCREEN_SIZE,
   CHEVRON_PROPORTIONAL_SIZE,
-  DELETE_ICON_SIZE,
-  DELETE_ICON_Y_OFFSET,
+  ACTION_ROW_OFFSET,
+  ACTION_ICON_SIZE,
+  ACTION_ICON_SPACING,
   HANDLE_TOLERANCE,
   SLOT_TOLERANCE_FACTOR,
   MIRRORED_OPACITY,
@@ -47,6 +49,10 @@ export function renderShapes(
   // Only count shapes in shapeOrder (excludes mirror shapes)
   const totalShapes = shapeOrder.length
   
+  // Can only delete if more than 2 circles exist (must keep at least 2)
+  const circleCount = shapes.filter(s => s.type === 'circle').length
+  const canDelete = circleCount > 2
+  
   // Draw non-selected shapes first (underneath)
   for (const shape of nonSelectedShapes) {
     if (shape.type === 'circle') {
@@ -60,7 +66,9 @@ export function renderShapes(
         zoom,
         // Only show index dots for shapes in the order (not mirrors)
         shapeIndex: isInOrder ? shapeIndex : undefined,
-        totalShapes: isInOrder ? totalShapes : undefined
+        totalShapes: isInOrder ? totalShapes : undefined,
+        canDelete,
+        isMirrored: shape.mirrored ?? false
       })
     }
   }
@@ -78,7 +86,9 @@ export function renderShapes(
         zoom,
         // Only show index dots for shapes in the order (not mirrors)
         shapeIndex: isInOrder ? shapeIndex : undefined,
-        totalShapes: isInOrder ? totalShapes : undefined
+        totalShapes: isInOrder ? totalShapes : undefined,
+        canDelete,
+        isMirrored: shape.mirrored ?? false
       })
     }
   }
@@ -158,7 +168,10 @@ export function renderSelectedTangentHandles(
   hoverTarget: HoverTarget,
   shapeOrder: string[],
   theme: CanvasTheme,
-  zoom: number
+  zoom: number,
+  closedPath: boolean = true,
+  useStartPoint: boolean = true,
+  useEndPoint: boolean = true
 ) {
   const circles = shapes.filter((s): s is CircleShape => s.type === 'circle')
   const selectedCircles = circles.filter(c => selectedIds.includes(c.id))
@@ -170,13 +183,13 @@ export function renderSelectedTangentHandles(
   for (const circle of selectedCircles) {
     if (circle.mirrored) {
       const mirroredCircle = createMirroredCircle(circle)
-      renderGhostTangentHandles(ctx, mirroredCircle, expandedShapes, expandedOrder, theme, zoom)
+      renderGhostTangentHandles(ctx, mirroredCircle, expandedShapes, expandedOrder, theme, zoom, closedPath, useStartPoint, useEndPoint)
     }
   }
   
   // Then render normal handles for selected circles (on top)
   for (const circle of selectedCircles) {
-    renderTangentHandles(ctx, circle, expandedShapes, expandedOrder, hoverTarget, theme, zoom)
+    renderTangentHandles(ctx, circle, expandedShapes, expandedOrder, hoverTarget, theme, zoom, closedPath, useStartPoint, useEndPoint)
   }
 }
 
@@ -188,6 +201,8 @@ interface CircleRenderOptions {
   zoom: number
   shapeIndex?: number  // Index in shape order (0-based)
   totalShapes?: number // Total number of shapes
+  canDelete?: boolean  // Whether deletion is allowed (false if only 2 circles)
+  isMirrored?: boolean // Whether this circle has mirroring enabled
 }
 
 function renderCircle(
@@ -196,7 +211,7 @@ function renderCircle(
   options: CircleRenderOptions
 ) {
   const { center, radius } = circle
-  const { theme, isSelected, isHovered, hoverTarget, zoom, shapeIndex, totalShapes } = options
+  const { theme, isSelected, isHovered, hoverTarget, zoom, shapeIndex, totalShapes, canDelete = true, isMirrored = false } = options
   
   const uiScale = 1 / zoom
   
@@ -204,6 +219,7 @@ function renderCircle(
   const isEdgeHovered = hoverTarget?.type === 'shape-edge' && hoverTarget.shapeId === circle.id
   const isRingHovered = hoverTarget?.type === 'direction-ring' && hoverTarget.shapeId === circle.id
   const isDeleteHovered = hoverTarget?.type === 'delete-icon' && hoverTarget.shapeId === circle.id
+  const isMirrorHovered = hoverTarget?.type === 'mirror-icon' && hoverTarget.shapeId === circle.id
   
   // Determine stroke color based on state
   let stroke = theme.stroke
@@ -233,9 +249,10 @@ function renderCircle(
     drawIndexDotGrid(ctx, center, shapeIndex, totalShapes, theme, zoom, isSelected, hoveredDotIndex)
   }
   
-  // Draw delete icon when selected (below the dot grid)
+  // Draw action row (mirror + delete icons) when selected, positioned below the circle
   if (isSelected) {
-    drawDeleteIcon(ctx, { x: center.x, y: center.y + DELETE_ICON_Y_OFFSET * uiScale }, theme, zoom, isDeleteHovered)
+    const rowY = center.y + radius + ACTION_ROW_OFFSET * uiScale
+    drawActionRow(ctx, { x: center.x, y: rowY }, theme, zoom, canDelete, isMirrored, isMirrorHovered, isDeleteHovered)
   }
 }
 
@@ -391,70 +408,105 @@ export function isOnDirectionRing(
 export const isOnDirectionArrow = isOnDirectionRing
 
 // ============================================================================
-// DELETE ICON
+// ACTION ROW (Mirror + Delete icons)
 // ============================================================================
 
 /**
- * Draw a delete icon (X) in the center of a selected circle
- * Uses double-stroke for visibility on any background
+ * Draw the action row with mirror and delete icons
+ * Positioned below the selected circle
  */
-function drawDeleteIcon(
+function drawActionRow(
   ctx: CanvasRenderingContext2D,
-  center: Point,
+  center: Point,  // Center point of the row (below circle)
   theme: CanvasTheme,
   zoom: number,
-  isHovered: boolean
+  canDelete: boolean,
+  isMirrored: boolean,
+  isMirrorHovered: boolean,
+  isDeleteHovered: boolean
 ) {
   const uiScale = 1 / zoom
-  const size = DELETE_ICON_SIZE * uiScale
+  const halfSpacing = (ACTION_ICON_SPACING / 2) * uiScale
+  const iconSize = ACTION_ICON_SIZE * 2 * uiScale  // Size for the icon drawing
   
-  ctx.save()
+  // Calculate positions - mirror on left, delete on right
+  const mirrorX = center.x - halfSpacing
+  const deleteX = center.x + halfSpacing
   
-  // Determine color based on hover state
-  const color = isHovered ? theme.danger : theme.accentDim
+  // Determine colors
+  const mirrorColor = (isMirrored || isMirrorHovered) ? theme.accent : theme.accentDim
+  const deleteColor = isDeleteHovered ? theme.danger : theme.accentDim
   
-  // Double-stroke for visibility
-  // Outer stroke (halo)
-  ctx.strokeStyle = theme.handle.outerStroke
-  ctx.lineWidth = (theme.weights.medium + 2) * uiScale
-  ctx.lineCap = 'round'
+  // Draw mirror icon using shared function
+  drawMirrorIconCanvas({
+    ctx,
+    x: mirrorX,
+    y: center.y,
+    size: iconSize,
+    color: mirrorColor,
+    haloColor: theme.handle.outerStroke,
+    lineWidth: theme.weights.medium * uiScale
+  })
   
-  ctx.beginPath()
-  ctx.moveTo(center.x - size, center.y - size)
-  ctx.lineTo(center.x + size, center.y + size)
-  ctx.moveTo(center.x + size, center.y - size)
-  ctx.lineTo(center.x - size, center.y + size)
-  ctx.stroke()
-  
-  // Inner stroke (color)
-  ctx.strokeStyle = color
-  ctx.lineWidth = theme.weights.medium * uiScale
-  
-  ctx.beginPath()
-  ctx.moveTo(center.x - size, center.y - size)
-  ctx.lineTo(center.x + size, center.y + size)
-  ctx.moveTo(center.x + size, center.y - size)
-  ctx.lineTo(center.x - size, center.y + size)
-  ctx.stroke()
-  
-  ctx.restore()
+  // Draw delete icon (only if deletion is allowed)
+  if (canDelete) {
+    drawDeleteIconCanvas({
+      ctx,
+      x: deleteX,
+      y: center.y,
+      size: iconSize,
+      color: deleteColor,
+      haloColor: theme.handle.outerStroke,
+      lineWidth: theme.weights.medium * uiScale
+    })
+  }
+}
+
+/**
+ * Get the Y position of the action row for a circle
+ */
+function getActionRowY(circle: CircleShape, zoom: number): number {
+  const uiScale = 1 / zoom
+  return circle.center.y + circle.radius + ACTION_ROW_OFFSET * uiScale
 }
 
 /**
  * Check if a point is on the delete icon
- * Note: Delete icon is offset down when order controls are shown
+ * Action row is positioned below the circle
  */
 export function isOnDeleteIcon(
   circle: CircleShape,
   point: Point,
   zoom: number,
-  hasOrderControls: boolean = true
+  _hasOrderControls: boolean = true  // Legacy param, kept for API compatibility
 ): boolean {
   const tolerance = HANDLE_TOLERANCE / zoom
   const uiScale = 1 / zoom
-  const deleteY = hasOrderControls ? circle.center.y + (DELETE_ICON_Y_OFFSET + 2) * uiScale : circle.center.y
-  const dx = point.x - circle.center.x
-  const dy = point.y - deleteY
+  const rowY = getActionRowY(circle, zoom)
+  const deleteX = circle.center.x + (ACTION_ICON_SPACING / 2) * uiScale
+  
+  const dx = point.x - deleteX
+  const dy = point.y - rowY
+  const dist = Math.sqrt(dx * dx + dy * dy)
+  return dist <= tolerance
+}
+
+/**
+ * Check if a point is on the mirror icon
+ * Action row is positioned below the circle
+ */
+export function isOnMirrorIcon(
+  circle: CircleShape,
+  point: Point,
+  zoom: number
+): boolean {
+  const tolerance = HANDLE_TOLERANCE / zoom
+  const uiScale = 1 / zoom
+  const rowY = getActionRowY(circle, zoom)
+  const mirrorX = circle.center.x - (ACTION_ICON_SPACING / 2) * uiScale
+  
+  const dx = point.x - mirrorX
+  const dy = point.y - rowY
   const dist = Math.sqrt(dx * dx + dy * dy)
   return dist <= tolerance
 }
@@ -545,7 +597,7 @@ function drawIndexDotGrid(
       ctx.fillStyle = isSelected ? theme.accent : theme.accentDim
       ctx.fill()
     } else if (isHovered) {
-      // Hovered dot (can click to swap) - accent outline
+      // Hovered dot (can click to move here) - accent outline
       ctx.strokeStyle = theme.accent
       ctx.lineWidth = 1.5 * uiScale
       ctx.stroke()
@@ -862,10 +914,42 @@ function renderTangentHandles(
   shapeOrder: string[],
   hoverTarget: HoverTarget,
   theme: CanvasTheme,
-  zoom: number
+  zoom: number,
+  closedPath: boolean = true,
+  useStartPoint: boolean = true,
+  useEndPoint: boolean = true
 ) {
   const info = computeTangentHandleInfo(circle, circles, shapeOrder)
   if (!info) return
+  
+  // Determine if this is the first or last circle in the path
+  const orderIndex = shapeOrder.indexOf(circle.id)
+  const isFirst = orderIndex === 0
+  const isLast = orderIndex === shapeOrder.length - 1
+  
+  // Determine which handles to show based on path settings
+  // For closed paths: always show all handles
+  // For open paths:
+  //   - First circle: has entry handles only if useStartPoint is true (wraps around circle)
+  //   - First circle: always has exit handles (path starts here)
+  //   - Last circle: always has entry handles (path arrives here)
+  //   - Last circle: has exit handles only if useEndPoint is true (wraps around circle)
+  let showEntry = true
+  let showExit = true
+  
+  if (!closedPath) {
+    if (isFirst) {
+      // First circle: entry only if useStartPoint (arc wraps around)
+      showEntry = useStartPoint
+    }
+    if (isLast) {
+      // Last circle: exit only if useEndPoint (arc wraps around)
+      showExit = useEndPoint
+    }
+  }
+  
+  // If nothing to show, return early
+  if (!showEntry && !showExit) return
   
   const uiScale = 1 / zoom
   
@@ -882,18 +966,18 @@ function renderTangentHandles(
   const isExitLengthSlotHovered = hoverTarget?.type === 'exit-length-slot' && hoverTarget.shapeId === circle.id
   
   // Draw slots for offset handles (diamond shape - same as handle, no connecting line)
-  if (info.hasEntryOffset) {
+  if (showEntry && info.hasEntryOffset) {
     drawSlot(ctx, info.rawEntryPoint, 'diamond', theme, uiScale, isEntryOffsetSlotHovered)
   }
-  if (info.hasExitOffset) {
+  if (showExit && info.hasExitOffset) {
     drawSlot(ctx, info.rawExitPoint, 'diamond', theme, uiScale, isExitOffsetSlotHovered)
   }
   
   // Draw slots for length handles (circle shape - same as handle, no connecting line)
-  if (info.hasEntryLengthOffset) {
+  if (showEntry && info.hasEntryLengthOffset) {
     drawSlot(ctx, info.rawEntryLengthHandle, 'circle', theme, uiScale, isEntryLengthSlotHovered)
   }
-  if (info.hasExitLengthOffset) {
+  if (showExit && info.hasExitLengthOffset) {
     drawSlot(ctx, info.rawExitLengthHandle, 'circle', theme, uiScale, isExitLengthSlotHovered)
   }
   
@@ -902,41 +986,57 @@ function renderTangentHandles(
   ctx.strokeStyle = theme.handle.outerStroke
   ctx.lineWidth = (theme.handle.innerWidth + theme.handle.outerWidth * 2) * uiScale
   
-  ctx.beginPath()
-  ctx.moveTo(info.entryLengthHandle.x, info.entryLengthHandle.y)
-  ctx.lineTo(info.entryPoint.x, info.entryPoint.y)
-  ctx.stroke()
+  if (showEntry) {
+    ctx.beginPath()
+    ctx.moveTo(info.entryLengthHandle.x, info.entryLengthHandle.y)
+    ctx.lineTo(info.entryPoint.x, info.entryPoint.y)
+    ctx.stroke()
+  }
   
-  ctx.beginPath()
-  ctx.moveTo(info.exitPoint.x, info.exitPoint.y)
-  ctx.lineTo(info.exitLengthHandle.x, info.exitLengthHandle.y)
-  ctx.stroke()
+  if (showExit) {
+    ctx.beginPath()
+    ctx.moveTo(info.exitPoint.x, info.exitPoint.y)
+    ctx.lineTo(info.exitLengthHandle.x, info.exitLengthHandle.y)
+    ctx.stroke()
+  }
   
   // Layer 2: Dark inner stroke (solid)
   ctx.strokeStyle = theme.handle.innerStroke
   ctx.lineWidth = theme.handle.innerWidth * uiScale
   
-  ctx.beginPath()
-  ctx.moveTo(info.entryLengthHandle.x, info.entryLengthHandle.y)
-  ctx.lineTo(info.entryPoint.x, info.entryPoint.y)
-  ctx.stroke()
+  if (showEntry) {
+    ctx.beginPath()
+    ctx.moveTo(info.entryLengthHandle.x, info.entryLengthHandle.y)
+    ctx.lineTo(info.entryPoint.x, info.entryPoint.y)
+    ctx.stroke()
+  }
   
-  ctx.beginPath()
-  ctx.moveTo(info.exitPoint.x, info.exitPoint.y)
-  ctx.lineTo(info.exitLengthHandle.x, info.exitLengthHandle.y)
-  ctx.stroke()
+  if (showExit) {
+    ctx.beginPath()
+    ctx.moveTo(info.exitPoint.x, info.exitPoint.y)
+    ctx.lineTo(info.exitLengthHandle.x, info.exitLengthHandle.y)
+    ctx.stroke()
+  }
   
   // Draw entry point handle (filled diamond)
-  drawHandle(ctx, info.entryPoint, 'diamond', 'filled', theme, uiScale, isEntryOffsetHovered)
+  if (showEntry) {
+    drawHandle(ctx, info.entryPoint, 'diamond', 'filled', theme, uiScale, isEntryOffsetHovered)
+  }
   
   // Draw exit point handle (filled diamond)
-  drawHandle(ctx, info.exitPoint, 'diamond', 'filled', theme, uiScale, isExitOffsetHovered)
+  if (showExit) {
+    drawHandle(ctx, info.exitPoint, 'diamond', 'filled', theme, uiScale, isExitOffsetHovered)
+  }
   
   // Draw entry length handle (filled circle)
-  drawHandle(ctx, info.entryLengthHandle, 'circle', 'filled', theme, uiScale, isEntryLengthHovered)
+  if (showEntry) {
+    drawHandle(ctx, info.entryLengthHandle, 'circle', 'filled', theme, uiScale, isEntryLengthHovered)
+  }
   
   // Draw exit length handle (filled circle)
-  drawHandle(ctx, info.exitLengthHandle, 'circle', 'filled', theme, uiScale, isExitLengthHovered)
+  if (showExit) {
+    drawHandle(ctx, info.exitLengthHandle, 'circle', 'filled', theme, uiScale, isExitLengthHovered)
+  }
 }
 
 /**
@@ -949,10 +1049,36 @@ function renderGhostTangentHandles(
   circles: CircleShape[],
   shapeOrder: string[],
   theme: CanvasTheme,
-  zoom: number
+  zoom: number,
+  closedPath: boolean = true,
+  useStartPoint: boolean = true,
+  useEndPoint: boolean = true
 ) {
   const info = computeTangentHandleInfo(circle, circles, shapeOrder)
   if (!info) return
+  
+  // Determine if this is the first or last circle in the path
+  const orderIndex = shapeOrder.indexOf(circle.id)
+  const isFirst = orderIndex === 0
+  const isLast = orderIndex === shapeOrder.length - 1
+  
+  // Determine which handles to show based on path settings (same logic as renderTangentHandles)
+  let showEntry = true
+  let showExit = true
+  
+  if (!closedPath) {
+    if (isFirst) {
+      // First circle: entry only if useStartPoint (arc wraps around)
+      showEntry = useStartPoint
+    }
+    if (isLast) {
+      // Last circle: exit only if useEndPoint (arc wraps around)
+      showExit = useEndPoint
+    }
+  }
+  
+  // If nothing to show, return early
+  if (!showEntry && !showExit) return
   
   const uiScale = 1 / zoom
   
@@ -965,28 +1091,40 @@ function renderGhostTangentHandles(
   ctx.strokeStyle = theme.accent
   ctx.lineWidth = theme.weights.light * uiScale
   
-  ctx.beginPath()
-  ctx.moveTo(info.entryLengthHandle.x, info.entryLengthHandle.y)
-  ctx.lineTo(info.entryPoint.x, info.entryPoint.y)
-  ctx.stroke()
+  if (showEntry) {
+    ctx.beginPath()
+    ctx.moveTo(info.entryLengthHandle.x, info.entryLengthHandle.y)
+    ctx.lineTo(info.entryPoint.x, info.entryPoint.y)
+    ctx.stroke()
+  }
   
-  ctx.beginPath()
-  ctx.moveTo(info.exitPoint.x, info.exitPoint.y)
-  ctx.lineTo(info.exitLengthHandle.x, info.exitLengthHandle.y)
-  ctx.stroke()
+  if (showExit) {
+    ctx.beginPath()
+    ctx.moveTo(info.exitPoint.x, info.exitPoint.y)
+    ctx.lineTo(info.exitLengthHandle.x, info.exitLengthHandle.y)
+    ctx.stroke()
+  }
   
   // Draw handles using the same drawHandle function (same style as normal)
   // Entry offset handle (diamond, filled)
-  drawHandle(ctx, info.entryPoint, 'diamond', 'filled', theme, uiScale, false)
+  if (showEntry) {
+    drawHandle(ctx, info.entryPoint, 'diamond', 'filled', theme, uiScale, false)
+  }
   
   // Exit offset handle (diamond, filled)
-  drawHandle(ctx, info.exitPoint, 'diamond', 'filled', theme, uiScale, false)
+  if (showExit) {
+    drawHandle(ctx, info.exitPoint, 'diamond', 'filled', theme, uiScale, false)
+  }
   
   // Entry length handle (circle, filled)
-  drawHandle(ctx, info.entryLengthHandle, 'circle', 'filled', theme, uiScale, false)
+  if (showEntry) {
+    drawHandle(ctx, info.entryLengthHandle, 'circle', 'filled', theme, uiScale, false)
+  }
   
   // Exit length handle (circle, filled)
-  drawHandle(ctx, info.exitLengthHandle, 'circle', 'filled', theme, uiScale, false)
+  if (showExit) {
+    drawHandle(ctx, info.exitLengthHandle, 'circle', 'filled', theme, uiScale, false)
+  }
   
   ctx.restore()
 }

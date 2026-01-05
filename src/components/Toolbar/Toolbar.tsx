@@ -1,5 +1,6 @@
 import { useViewportStore } from '../../stores/viewportStore'
 import { useSettingsStore } from '../../stores/settingsStore'
+import { fitToView } from '../../utils/viewportActions'
 import styles from './Toolbar.module.css'
 
 export function Toolbar() {
@@ -30,6 +31,8 @@ export function Toolbar() {
         </button>
       </div>
       
+      <div className={styles.separator} />
+      
       <div className={styles.group}>
         <label className={styles.label}>Zoom</label>
         <input
@@ -41,7 +44,16 @@ export function Toolbar() {
           className={styles.slider}
         />
         <span className={styles.value}>{zoomPercent}%</span>
+        <button
+          className={styles.button}
+          onClick={() => fitToView()}
+          title="Fit to view (F)"
+        >
+          Fit
+        </button>
       </div>
+      
+      <div className={styles.separator} />
       
       <div className={styles.group}>
         <button

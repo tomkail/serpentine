@@ -13,6 +13,7 @@ import { renderPath } from './renderers/PathRenderer'
 import { renderMeasurements } from './renderers/MeasurementRenderer'
 import { renderHandleValues } from './renderers/HandleValueRenderer'
 import { reportError } from '../../stores/notificationStore'
+import { fitToView } from '../../utils/viewportActions'
 import styles from './Canvas.module.css'
 
 export function Canvas() {
@@ -24,6 +25,8 @@ export function Canvas() {
   const shapeOrder = useDocumentStore(state => state.shapeOrder)
   const globalStretch = useDocumentStore(state => state.globalStretch)
   const closedPath = useDocumentStore(state => state.closedPath)
+  const useStartPoint = useDocumentStore(state => state.useStartPoint)
+  const useEndPoint = useDocumentStore(state => state.useEndPoint)
   const pan = useViewportStore(state => state.pan)
   const zoom = useViewportStore(state => state.zoom)
   const selectedIds = useSelectionStore(state => state.selectedIds)
@@ -49,6 +52,9 @@ export function Canvas() {
   
   // Track if we've already reported a render error (to avoid spamming)
   const lastRenderErrorRef = useRef<string | null>(null)
+  
+  // Track if initial fit-to-view has been done
+  const initialFitDoneRef = useRef(false)
   
   // Render function
   const render = useCallback(() => {
@@ -81,10 +87,10 @@ export function Canvas() {
       renderShapes(ctx, shapes, selectedIds, hoveredId, hoverTarget, theme, zoom, shapeOrder)
       
       // Path on top of shapes
-      renderPath(ctx, shapes, shapeOrder, zoom, globalStretch, closedPath)
+      renderPath(ctx, shapes, shapeOrder, zoom, globalStretch, closedPath, useStartPoint, useEndPoint)
       
       // Tangent handles on top of path (for selected circles)
-      renderSelectedTangentHandles(ctx, shapes, selectedIds, hoverTarget, shapeOrder, theme, zoom)
+      renderSelectedTangentHandles(ctx, shapes, selectedIds, hoverTarget, shapeOrder, theme, zoom, closedPath, useStartPoint, useEndPoint)
       
       // Handle value labels (for hovered/dragged handles)
       renderHandleValues(
@@ -102,7 +108,7 @@ export function Canvas() {
       
       // Measurements on top of everything
       if (measurementMode !== 'clean') {
-        renderMeasurements(ctx, shapes, shapeOrder, measurementMode, zoom)
+        renderMeasurements(ctx, shapes, shapeOrder, measurementMode, zoom, closedPath, useStartPoint, useEndPoint)
       }
       
       ctx.restore()
@@ -119,7 +125,7 @@ export function Canvas() {
         reportError(error, 'Canvas render error')
       }
     }
-  }, [shapes, shapeOrder, globalStretch, closedPath, pan, zoom, selectedIds, hoveredId, hoverTarget, dragState, gridSize, showGrid, measurementMode, debugSettings, theme])
+  }, [shapes, shapeOrder, globalStretch, closedPath, useStartPoint, useEndPoint, pan, zoom, selectedIds, hoveredId, hoverTarget, dragState, gridSize, showGrid, measurementMode, debugSettings, theme])
   
   // Store canvas dimensions
   const setCanvasDimensions = useCanvasStore(state => state.setDimensions)
@@ -146,6 +152,15 @@ export function Canvas() {
         const ctx = canvas.getContext('2d')
         if (ctx) {
           ctx.scale(dpr, dpr)
+        }
+        
+        // Fit to view on initial load (only once)
+        if (!initialFitDoneRef.current) {
+          initialFitDoneRef.current = true
+          // Use requestAnimationFrame to ensure dimensions are committed
+          requestAnimationFrame(() => {
+            fitToView(true)
+          })
         }
         
         render()

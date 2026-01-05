@@ -24,7 +24,7 @@ const MEASUREMENT_MODES: MeasurementMode[] = ['clean', 'minimal', 'detailed']
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      snapToGrid: false,
+      snapToGrid: true,
       gridSize: DEFAULT_GRID_SIZE,
       measurementMode: 'minimal',
       showGrid: true,
@@ -52,7 +52,7 @@ export const useSettingsStore = create<SettingsState>()(
       }))
     }),
     {
-      name: 'stringpath-settings',
+      name: 'serpentine-settings',
       partialize: (state) => ({
         snapToGrid: state.snapToGrid,
         gridSize: state.gridSize,

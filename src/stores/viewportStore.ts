@@ -92,7 +92,7 @@ export const useViewportStore = create<ViewportState>()(
       })
     }),
     {
-      name: 'stringpath-viewport',
+      name: 'serpentine-viewport',
       partialize: (state) => ({
         pan: state.pan,
         zoom: state.zoom

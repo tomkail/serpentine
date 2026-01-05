@@ -89,8 +89,13 @@ export const CHEVRON_PROPORTIONAL_SIZE = 0.10 // As fraction of radius
 export const HANDLE_TOLERANCE = 12           // Hit detection for handles (screen px)
 export const DRAG_THRESHOLD = 3              // Minimum movement to start drag
 export const DELETE_ICON_SIZE = 6            // Size of delete X icon
-export const DELETE_ICON_Y_OFFSET = 18       // Y offset for delete icon
+export const DELETE_ICON_Y_OFFSET = 18       // Y offset for delete icon (legacy, not used)
 export const SLOT_TOLERANCE_FACTOR = 0.8     // Slot hit area relative to handle
+
+// Action row (mirror + delete icons) positioned below circle
+export const ACTION_ROW_OFFSET = 24          // Gap between circle edge and action row
+export const ACTION_ICON_SIZE = 6            // Size of action icons
+export const ACTION_ICON_SPACING = 20        // Horizontal spacing between icons
 
 // ============================================================================
 // TANGENT HANDLES

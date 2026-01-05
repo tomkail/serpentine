@@ -132,12 +132,16 @@ export function createStretchResolver(
  * 
  * @param closed - If true, the path loops back from the last circle to the first.
  *                 If false, the path is open-ended.
+ * @param useStartPoint - If false and not closed, skip the first circle's exit connector
+ * @param useEndPoint - If false and not closed, skip the last circle's entry connector
  */
 export function computeTangentHull(
   shapes: CircleShape[],
   order: string[],
   globalStretch: number = 0,
-  closed: boolean = true
+  closed: boolean = true,
+  useStartPoint: boolean = true,
+  useEndPoint: boolean = true
 ): PathData {
   const segments: (LineSegment | BezierSegment | ArcSegment | EllipseArcSegment)[] = []
   
@@ -156,11 +160,11 @@ export function computeTangentHull(
   const n = orderedCircles.length
   
   // Compute all tangent lines between consecutive circles
-  // For open paths, we don't need the final tangent back to the first circle
-  const tangentCount = closed ? n : n - 1
+  // For open paths, we always compute all n tangents (including wrap-around)
+  // so that useStartPoint/useEndPoint can use them for arc calculations
   const tangents: (TangentResult | null)[] = []
   
-  for (let i = 0; i < tangentCount; i++) {
+  for (let i = 0; i < n; i++) {
     const curr = orderedCircles[i]
     const next = orderedCircles[(i + 1) % n]
     
@@ -185,6 +189,7 @@ export function computeTangentHull(
   let totalLength = 0
   
   // For open paths, we iterate through all circles but handle first/last specially
+  // useStartPoint/useEndPoint control whether arcs are drawn on first/last circles
   const circleCount = n
   
   for (let i = 0; i < circleCount; i++) {
@@ -194,68 +199,74 @@ export function computeTangentHull(
     // Get stretch for this circle
     const stretch = resolveStretch(circle.id)
     
-    // For open paths, first circle has no incoming tangent
-    // For closed paths, or any other circle, get the previous tangent
-    const hasPrevTangent = closed || i > 0
-    const hasNextTangent = closed || i < n - 1
+    // For open paths, determine which tangents are available based on useStartPoint/useEndPoint
+    // - First circle (i=0): has prev tangent if closed OR useStartPoint
+    // - Last circle (i=n-1): has next tangent if closed OR useEndPoint
+    const isFirst = i === 0
+    const isLast = i === n - 1
     
-    // Skip first circle's arc if path is open (no entry point)
-    if (!hasPrevTangent) {
-      // For open path, first circle: just add connector to next
-      if (hasNextTangent) {
-        const currTangent = tangents[i]!
-        const nextCircle = orderedCircles[i + 1]
-        const exitAngle = currTangent.angle1
-        const exitOffsetAmount = circle.exitOffset ?? 0
-        const offsetDir = clockwise ? 1 : -1
-        const adjustedExitAngle = exitOffsetAmount !== 0 
-          ? exitAngle + exitOffsetAmount * offsetDir 
-          : exitAngle
-        const exitPoint = pointOnCircle(circle.center, circle.radius, adjustedExitAngle)
-        const exitTangentLengthMult = circle.exitTangentLength ?? DEFAULT_TANGENT_LENGTH
-        
-        // Calculate entry point on next circle
-        const nextClockwise = (nextCircle.wrapSide ?? 'right') === 'right'
-        let nextEntryAngle = currTangent.angle2
-        const nextEntryOffset = nextCircle.entryOffset ?? 0
-        if (nextEntryOffset !== 0) {
-          const nextOffsetDir = nextClockwise ? 1 : -1
-          nextEntryAngle += nextEntryOffset * nextOffsetDir
-        }
-        const nextEntryPoint = pointOnCircle(nextCircle.center, nextCircle.radius, nextEntryAngle)
-        const nextEntryTangentLengthMult = nextCircle.entryTangentLength ?? DEFAULT_TANGENT_LENGTH
-        
-        const hasOffsets = exitOffsetAmount !== 0 || nextEntryOffset !== 0
-        const hasCustomLengths = exitTangentLengthMult !== DEFAULT_TANGENT_LENGTH || nextEntryTangentLengthMult !== DEFAULT_TANGENT_LENGTH
-        
-        if (hasOffsets || hasCustomLengths) {
-          const connectorSeg = createTangentConnector(
-            exitPoint, adjustedExitAngle, clockwise, exitTangentLengthMult,
-            nextEntryPoint, nextEntryAngle, nextClockwise, nextEntryTangentLengthMult
-          )
-          segments.push(connectorSeg)
-          totalLength += connectorSeg.length
-        } else {
-          const lineLen = distance(exitPoint, nextEntryPoint)
-          segments.push({ type: 'line', start: exitPoint, end: nextEntryPoint, length: lineLen })
-          totalLength += lineLen
-        }
+    // Skip first circle entirely if path is open and useStartPoint is false
+    if (!closed && isFirst && !useStartPoint) {
+      // For open path without start point: just add connector to next
+      const currTangent = tangents[i]!
+      const nextCircle = orderedCircles[i + 1]
+      const exitAngle = currTangent.angle1
+      const exitOffsetAmount = circle.exitOffset ?? 0
+      const offsetDir = clockwise ? 1 : -1
+      const adjustedExitAngle = exitOffsetAmount !== 0 
+        ? exitAngle + exitOffsetAmount * offsetDir 
+        : exitAngle
+      const exitPoint = pointOnCircle(circle.center, circle.radius, adjustedExitAngle)
+      const exitTangentLengthMult = circle.exitTangentLength ?? DEFAULT_TANGENT_LENGTH
+      
+      // Calculate entry point on next circle
+      const nextClockwise = (nextCircle.wrapSide ?? 'right') === 'right'
+      let nextEntryAngle = currTangent.angle2
+      const nextEntryOffset = nextCircle.entryOffset ?? 0
+      if (nextEntryOffset !== 0) {
+        const nextOffsetDir = nextClockwise ? 1 : -1
+        nextEntryAngle += nextEntryOffset * nextOffsetDir
       }
+      const nextEntryPoint = pointOnCircle(nextCircle.center, nextCircle.radius, nextEntryAngle)
+      const nextEntryTangentLengthMult = nextCircle.entryTangentLength ?? DEFAULT_TANGENT_LENGTH
+      
+      const hasOffsets = exitOffsetAmount !== 0 || nextEntryOffset !== 0
+      const hasCustomLengths = exitTangentLengthMult !== DEFAULT_TANGENT_LENGTH || nextEntryTangentLengthMult !== DEFAULT_TANGENT_LENGTH
+      
+      if (hasOffsets || hasCustomLengths) {
+        const connectorSeg = createTangentConnector(
+          exitPoint, adjustedExitAngle, clockwise, exitTangentLengthMult,
+          nextEntryPoint, nextEntryAngle, nextClockwise, nextEntryTangentLengthMult
+        )
+        segments.push(connectorSeg)
+        totalLength += connectorSeg.length
+      } else {
+        const lineLen = distance(exitPoint, nextEntryPoint)
+        segments.push({ type: 'line', start: exitPoint, end: nextEntryPoint, length: lineLen })
+        totalLength += lineLen
+      }
+      continue
+    }
+    
+    // Skip last circle entirely if path is open and useEndPoint is false
+    if (!closed && isLast && !useEndPoint) {
+      // Path already ended at entry to this circle, nothing more to draw
       continue
     }
     
     const nextCircle = orderedCircles[(i + 1) % n]
     
     // Tangent from previous circle TO this circle
-    const prevTangentIndex = closed ? (i - 1 + tangentCount) % tangentCount : i - 1
+    // For first circle with useStartPoint, use the wrap-around tangent (n-1, from last to first)
+    const prevTangentIndex = (i - 1 + n) % n
     const prevTangent = tangents[prevTangentIndex]!
-    // Tangent from this circle TO next circle (may not exist for last circle in open path)
-    const currTangent = hasNextTangent ? tangents[i]! : null
+    // Tangent from this circle TO next circle
+    // For last circle with useEndPoint, use the wrap-around tangent (n-1, from last to first)
+    const currTangent = tangents[i]!
     
     // Base entry/exit angles from tangent computation
     let entryAngle = prevTangent.angle2
-    // For open path's last circle, there's no exit tangent
-    let exitAngle = currTangent ? currTangent.angle1 : entryAngle
+    let exitAngle = currTangent.angle1
     
     // Apply separate entry/exit offsets to this circle's contact points
     const entryOffsetAmount = circle.entryOffset ?? 0
@@ -265,7 +276,7 @@ export function computeTangentHull(
     if (entryOffsetAmount !== 0) {
       entryAngle += entryOffsetAmount * offsetDir
     }
-    if (exitOffsetAmount !== 0 && hasNextTangent) {
+    if (exitOffsetAmount !== 0) {
       exitAngle += exitOffsetAmount * offsetDir
     }
     
@@ -274,54 +285,49 @@ export function computeTangentHull(
     
     // Calculate actual entry/exit points (potentially offset from true tangent)
     const entryPoint = pointOnCircle(circle.center, circle.radius, entryAngle)
-    // For open path's last circle, we only have entry point
-    const exitPoint = hasNextTangent 
-      ? pointOnCircle(circle.center, circle.radius, exitAngle)
-      : entryPoint
+    const exitPoint = pointOnCircle(circle.center, circle.radius, exitAngle)
     
     // Arc around this circle
-    // For open path's last circle, skip the arc (no exit point to draw to)
-    if (hasNextTangent) {
-      if (Math.abs(stretch) < 0.01) {
-        // No stretch: use circular arc
-        const arcLen = calculateArcLength(circle.radius, entryAngle, exitAngle, clockwise)
-        
-        const arcSeg: ArcSegment = {
-          type: 'arc',
-          center: circle.center,
-          radius: circle.radius,
-          startAngle: entryAngle,
-          endAngle: exitAngle,
-          clockwise,
-          length: arcLen
-        }
-        segments.push(arcSeg)
-        totalLength += arcLen
-      } else {
-        // Stretch applied: use elliptical arc
-        const ellipseSeg = createStretchedArc(
-          entryPoint,
-          exitPoint,
-          circle.center,
-          circle.radius,
-          entryAngle,
-          exitAngle,
-          clockwise,
-          stretch
-        )
-        segments.push(ellipseSeg)
-        totalLength += ellipseSeg.length
+    // Draw the arc from entry to exit
+    if (Math.abs(stretch) < 0.01) {
+      // No stretch: use circular arc
+      const arcLen = calculateArcLength(circle.radius, entryAngle, exitAngle, clockwise)
+      
+      const arcSeg: ArcSegment = {
+        type: 'arc',
+        center: circle.center,
+        radius: circle.radius,
+        startAngle: entryAngle,
+        endAngle: exitAngle,
+        clockwise,
+        length: arcLen
       }
+      segments.push(arcSeg)
+      totalLength += arcLen
+    } else {
+      // Stretch applied: use elliptical arc
+      const ellipseSeg = createStretchedArc(
+        entryPoint,
+        exitPoint,
+        circle.center,
+        circle.radius,
+        entryAngle,
+        exitAngle,
+        clockwise,
+        stretch
+      )
+      segments.push(ellipseSeg)
+      totalLength += ellipseSeg.length
     }
     
     // === Connector segment from this circle to next circle ===
-    // Skip if this is the last circle in an open path
-    if (!hasNextTangent) continue
+    // Skip if this is the last circle in an open path (no connector to first circle)
+    // The path ends at this circle's exit point
+    if (!closed && isLast) continue
     
-    // At this point we know currTangent exists (hasNextTangent is true)
     // Calculate the entry point on the NEXT circle (potentially with its own offset)
     const nextClockwise = (nextCircle.wrapSide ?? 'right') === 'right'
-    let nextEntryAngle = currTangent!.angle2
+    let nextEntryAngle = currTangent.angle2
     const nextEntryOffset = nextCircle.entryOffset ?? 0
     if (nextEntryOffset !== 0) {
       const nextOffsetDir = nextClockwise ? 1 : -1
@@ -615,9 +621,11 @@ export function getOrderedPathSegments(
   shapes: CircleShape[],
   order: string[],
   globalStretch: number = 0,
-  closed: boolean = true
+  closed: boolean = true,
+  useStartPoint: boolean = true,
+  useEndPoint: boolean = true
 ): PathData {
-  return computeTangentHull(shapes, order, globalStretch, closed)
+  return computeTangentHull(shapes, order, globalStretch, closed, useStartPoint, useEndPoint)
 }
 
 /**
@@ -705,7 +713,9 @@ export function findPathSegmentAt(
   point: Point,
   threshold: number,
   globalStretch: number = 0,
-  closed: boolean = true
+  closed: boolean = true,
+  useStartPoint: boolean = true,
+  useEndPoint: boolean = true
 ): PathHitInfo | null {
   // Expand shapes to include mirrored circles
   const { expandedShapes, expandedOrder } = expandMirroredCircles(shapes, order)
@@ -716,7 +726,7 @@ export function findPathSegmentAt(
   
   if (circles.length < 2) return null
   
-  const pathData = computeTangentHull(shapes, order, globalStretch, closed)
+  const pathData = computeTangentHull(shapes, order, globalStretch, closed, useStartPoint, useEndPoint)
   if (pathData.segments.length === 0) return null
   
   let closestHit: PathHitInfo | null = null

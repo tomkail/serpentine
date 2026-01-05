@@ -14,13 +14,15 @@ export function renderPath(
   order: string[],
   zoom: number = 1,
   globalStretch: number = 0,
-  closed: boolean = true
+  closed: boolean = true,
+  useStartPoint: boolean = true,
+  useEndPoint: boolean = true
 ) {
   const circles = shapes.filter((s): s is CircleShape => s.type === 'circle')
   
   if (circles.length < 2) return
   
-  const pathData = computeTangentHull(circles, order, globalStretch, closed)
+  const pathData = computeTangentHull(circles, order, globalStretch, closed, useStartPoint, useEndPoint)
   
   if (pathData.segments.length === 0) return
   

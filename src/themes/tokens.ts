@@ -1,5 +1,5 @@
 /**
- * Design Token System for StringPath
+ * Design Token System for Serpentine
  * 
  * Three-tier architecture:
  * 1. Primitives - Raw color values

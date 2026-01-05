@@ -97,7 +97,7 @@ export function reportError(error: unknown, context?: string): void {
     message = `${context}: ${message}`
   }
   
-  console.error(`[StringPath Error] ${message}`, error)
+  console.error(`[Serpentine Error] ${message}`, error)
   store.error(message, details)
 }
 

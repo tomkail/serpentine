@@ -10,7 +10,10 @@ export function renderMeasurements(
   shapes: Shape[],
   order: string[],
   mode: MeasurementMode,
-  zoom: number = 1
+  zoom: number = 1,
+  closed: boolean = true,
+  useStartPoint: boolean = true,
+  useEndPoint: boolean = true
 ) {
   if (mode === 'clean') return
   
@@ -35,7 +38,7 @@ export function renderMeasurements(
   
   // Render path measurements
   if (circles.length >= 2) {
-    const pathData = computeTangentHull(circles, order)
+    const pathData = computeTangentHull(circles, order, 0, closed, useStartPoint, useEndPoint)
     
     // Segment lengths (only in detailed mode)
     if (mode === 'detailed') {

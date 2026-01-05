@@ -1,9 +1,9 @@
-import type { StringPathDocument } from '../types'
+import type { SerpentineDocument } from '../types'
 
 export interface Preset {
   name: string
   description: string
-  document: StringPathDocument
+  document: SerpentineDocument
 }
 
 /**

@@ -8,13 +8,17 @@ export function PathInfo() {
   const shapes = useDocumentStore(state => state.shapes)
   const shapeOrder = useDocumentStore(state => state.shapeOrder)
   const closedPath = useDocumentStore(state => state.closedPath)
+  const useStartPoint = useDocumentStore(state => state.useStartPoint)
+  const useEndPoint = useDocumentStore(state => state.useEndPoint)
   const toggleClosedPath = useDocumentStore(state => state.toggleClosedPath)
+  const toggleUseStartPoint = useDocumentStore(state => state.toggleUseStartPoint)
+  const toggleUseEndPoint = useDocumentStore(state => state.toggleUseEndPoint)
   
   const pathData = useMemo(() => {
     const circles = shapes.filter((s): s is CircleShape => s.type === 'circle')
     if (circles.length < 2) return null
-    return computeTangentHull(circles, shapeOrder, 0, closedPath)
-  }, [shapes, shapeOrder, closedPath])
+    return computeTangentHull(circles, shapeOrder, 0, closedPath, useStartPoint, useEndPoint)
+  }, [shapes, shapeOrder, closedPath, useStartPoint, useEndPoint])
   
   if (!pathData) {
     return (
@@ -36,14 +40,31 @@ export function PathInfo() {
       <div className={styles.pathInfoTitle}>PATH</div>
       <div className={styles.pathInfoContent}>
         <div className={styles.pathInfoRow}>
-          <label className={styles.pathToggle}>
-            <input
-              type="checkbox"
-              checked={closedPath}
-              onChange={toggleClosedPath}
-            />
-            <span>Loop path</span>
-          </label>
+          <div className={styles.endModeGroup}>
+            <button
+              className={`${styles.endModeButton} ${closedPath ? styles.endModeActive : ''}`}
+              onClick={toggleClosedPath}
+              title="Loop path (connect end to start)"
+            >
+              ⟳
+            </button>
+            <button
+              className={`${styles.endModeButton} ${useStartPoint ? styles.endModeActive : ''} ${closedPath ? styles.endModeDisabled : ''}`}
+              onClick={toggleUseStartPoint}
+              disabled={closedPath}
+              title="Use start point on first circle"
+            >
+              ⊙→
+            </button>
+            <button
+              className={`${styles.endModeButton} ${useEndPoint ? styles.endModeActive : ''} ${closedPath ? styles.endModeDisabled : ''}`}
+              onClick={toggleUseEndPoint}
+              disabled={closedPath}
+              title="Use end point on last circle"
+            >
+              →⊙
+            </button>
+          </div>
         </div>
         <div className={styles.pathInfoRow}>
           <span>Total length:</span>

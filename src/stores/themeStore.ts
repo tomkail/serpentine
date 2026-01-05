@@ -26,7 +26,7 @@ export const useThemeStore = create<ThemeState>()(
       },
     }),
     {
-      name: 'stringpath-theme',
+      name: 'serpentine-theme',
       // Only persist the theme name, recompute theme on load
       partialize: (state) => ({ themeName: state.themeName }),
       onRehydrateStorage: () => (state) => {

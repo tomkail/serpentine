@@ -47,7 +47,7 @@ export const useDebugStore = create<DebugState>()(
       }),
     }),
     {
-      name: 'stringpath-debug-settings',
+      name: 'serpentine-debug-settings',
       // Only persist the visibility toggles, not the actions
       partialize: (state) => ({
         showTangentPoints: state.showTangentPoints,

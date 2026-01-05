@@ -118,7 +118,7 @@ export interface DragState {
 export type MeasurementMode = 'clean' | 'minimal' | 'detailed'
 
 // File format types
-export interface StringPathDocument {
+export interface SerpentineDocument {
   version: number
   name: string
   created?: string
@@ -128,6 +128,8 @@ export interface StringPathDocument {
     globalTension?: number  // Legacy, kept for backwards compatibility
     globalStretch?: number  // -1 to 1, 0 = circular
     closedPath?: boolean    // Whether the path loops back to start (default true)
+    useStartPoint?: boolean // Whether to use tangent point on first circle (when not looping)
+    useEndPoint?: boolean   // Whether to use tangent point on last circle (when not looping)
   }
   viewport?: {
     pan: Point

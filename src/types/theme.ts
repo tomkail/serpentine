@@ -1,5 +1,5 @@
 /**
- * Theme type definitions for StringPath visual language
+ * Theme type definitions for Serpentine visual language
  */
 
 export interface CanvasTheme {
@@ -48,6 +48,7 @@ export type HoverTarget =
   | { type: 'shape-edge'; shapeId: string }
   | { type: 'direction-ring'; shapeId: string }
   | { type: 'delete-icon'; shapeId: string }
+  | { type: 'mirror-icon'; shapeId: string }
   | { type: 'order-prev'; shapeId: string }
   | { type: 'order-next'; shapeId: string }
   | { type: 'index-dot'; shapeId: string; dotIndex: number }

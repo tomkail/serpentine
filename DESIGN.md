@@ -1,8 +1,8 @@
-# StringPath — Design Document
+# Serpentine — Design Document
 
 ## Overview
 
-**StringPath** is a geometric design tool for creating smooth, organic paths defined by shapes. Users place circles (and eventually ellipses, rounded polygons) on an infinite canvas, and the app automatically renders a path that wraps around them — like a string held taut between pegs.
+**Serpentine** is a geometric design tool for creating smooth, organic paths defined by shapes. Users place circles (and eventually ellipses, rounded polygons) on an infinite canvas, and the app automatically renders a path that wraps around them — like a string held taut between pegs.
 
 The tool is designed for:
 - Luthiers designing guitar bodies and instrument outlines
@@ -16,7 +16,7 @@ The tool is designed for:
 
 ### Inspired by Hundred Rabbits & Permacomputing
 
-StringPath follows the software philosophy of [Hundred Rabbits](https://hundredrabbits.itch.io/dotgrid) and the permacomputing movement:
+Serpentine follows the software philosophy of [Hundred Rabbits](https://hundredrabbits.itch.io/dotgrid) and the permacomputing movement:
 
 | Principle | Implementation |
 |-----------|----------------|
@@ -40,7 +40,7 @@ StringPath follows the software philosophy of [Hundred Rabbits](https://hundredr
 
 ## Visual Language
 
-StringPath uses a carefully designed visual language that prioritizes clarity, consistency, and accessibility.
+Serpentine uses a carefully designed visual language that prioritizes clarity, consistency, and accessibility.
 
 ### Core Principles
 
@@ -385,7 +385,7 @@ Bottom of hierarchy panel shows:
 | Action | Shortcut | Behavior |
 |--------|----------|----------|
 | **New** | Cmd/Ctrl + N | Clear canvas (with confirmation) |
-| **Save** | Cmd/Ctrl + S | Download `.stringpath` JSON file |
+| **Save** | Cmd/Ctrl + S | Download `.serpentine` JSON file |
 | **Load** | Cmd/Ctrl + O | Open file picker |
 
 **Auto-save:** State persists to `localStorage` on every change. Reloading the page restores exactly where you left off.
@@ -669,7 +669,7 @@ interface EllipseArcSegment {
 
 ## File Format
 
-`.stringpath` files are JSON:
+`.serpentine` files are JSON:
 
 ```json
 {
@@ -771,7 +771,7 @@ The stretch feature that transforms circular arcs into elliptical arcs has known
 
 ## Summary
 
-StringPath is a focused, well-crafted tool for geometric path construction. It embraces constraints as a design philosophy — monochrome palette, grid-based, single-purpose — while providing the precision and flexibility needed for real design work.
+Serpentine is a focused, well-crafted tool for geometric path construction. It embraces constraints as a design philosophy — monochrome palette, grid-based, single-purpose — while providing the precision and flexibility needed for real design work.
 
 The architecture prioritizes:
 - **Extensibility** — Shape abstraction allows new primitives without rewriting core logic

@@ -28,14 +28,14 @@ export class ErrorBoundary extends Component<Props, State> {
   
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     this.setState({ errorInfo })
-    console.error('[StringPath] Uncaught error:', error, errorInfo)
+    console.error('[Serpentine] Uncaught error:', error, errorInfo)
   }
   
   handleReset = (): void => {
     // Clear localStorage to reset app state
-    localStorage.removeItem('stringpath-document')
-    localStorage.removeItem('stringpath-viewport')
-    localStorage.removeItem('stringpath-settings')
+    localStorage.removeItem('serpentine-document')
+    localStorage.removeItem('serpentine-viewport')
+    localStorage.removeItem('serpentine-settings')
     
     // Reload the page
     window.location.reload()

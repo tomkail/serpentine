@@ -217,7 +217,7 @@ export function MenuBar() {
       </div>
       
       <div className={styles.title}>
-        {fileName || 'StringPath'}
+        {fileName || 'Serpentine'}
       </div>
       
       <div className={styles.spacer} />

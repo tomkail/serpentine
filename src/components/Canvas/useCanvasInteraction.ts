@@ -7,6 +7,7 @@ import { createCircle } from '../../geometry/shapes/Circle'
 import { 
   isOnDirectionRing, 
   isOnDeleteIcon,
+  isOnMirrorIcon,
   isOnEdgeZone,
   isInBodyZone,
   getIndexDotAt,
@@ -106,6 +107,7 @@ export function useCanvasInteraction(
   const reorderShapes = useDocumentStore(state => state.reorderShapes)
   const insertShapeAt = useDocumentStore(state => state.insertShapeAt)
   const toggleWrapSide = useDocumentStore(state => state.toggleWrapSide)
+  const toggleMirror = useDocumentStore(state => state.toggleMirror)
   const setEntryOffset = useDocumentStore(state => state.setEntryOffset)
   const setExitOffset = useDocumentStore(state => state.setExitOffset)
   const setEntryTangentLength = useDocumentStore(state => state.setEntryTangentLength)
@@ -179,7 +181,7 @@ export function useCanvasInteraction(
       }
     }
     
-    // Check index dots and delete icon on all circles
+    // Check index dots and action row icons on all circles
     for (const shape of shapes) {
       if (shape.type === 'circle') {
         // Check index dot grid (always visible)
@@ -192,12 +194,25 @@ export function useCanvasInteraction(
           }
         }
         
-        // Check delete icon (only on selected shapes)
-        if (selectedIds.includes(shape.id) && isOnDeleteIcon(shape, worldPos, zoom, true)) {
-          return { 
-            shape, 
-            hoverTarget: { type: 'delete-icon', shapeId: shape.id }, 
-            tangentHandle: null 
+        // Check action row icons (only on selected shapes)
+        if (selectedIds.includes(shape.id)) {
+          // Check mirror icon (always available)
+          if (isOnMirrorIcon(shape, worldPos, zoom)) {
+            return { 
+              shape, 
+              hoverTarget: { type: 'mirror-icon', shapeId: shape.id }, 
+              tangentHandle: null 
+            }
+          }
+          
+          // Check delete icon (only if more than 2 circles exist)
+          const circleCount = shapes.filter(s => s.type === 'circle').length
+          if (circleCount > 2 && isOnDeleteIcon(shape, worldPos, zoom, true)) {
+            return { 
+              shape, 
+              hoverTarget: { type: 'delete-icon', shapeId: shape.id }, 
+              tangentHandle: null 
+            }
           }
         }
       }
@@ -285,6 +300,8 @@ export function useCanvasInteraction(
       case 'direction-ring':
         return reverseCursor
       case 'delete-icon':
+        return 'pointer'
+      case 'mirror-icon':
         return 'pointer'
       case 'index-dot':
         return 'pointer'
@@ -468,17 +485,23 @@ export function useCanvasInteraction(
           return
         }
         
-        // Click on index dot: swap indices with target circle
+        // Click on mirror icon: toggle mirroring
+        if (hoverTarget?.type === 'mirror-icon') {
+          toggleMirror(shape.id)
+          return
+        }
+        
+        // Click on index dot: insert at target position (shifting others)
         if (hoverTarget?.type === 'index-dot') {
           const currentIndex = shapeOrder.indexOf(shape.id)
           const targetIndex = hoverTarget.dotIndex
           
-          // Only swap if clicking a different position
+          // Only move if clicking a different position
           if (currentIndex !== targetIndex && targetIndex >= 0 && targetIndex < shapeOrder.length) {
             const newOrder = [...shapeOrder]
-            // Swap the two shapes
-            ;[newOrder[currentIndex], newOrder[targetIndex]] = 
-              [newOrder[targetIndex], newOrder[currentIndex]]
+            // Remove from current position and insert at target
+            newOrder.splice(currentIndex, 1)
+            newOrder.splice(targetIndex, 0, shape.id)
             reorderShapes(newOrder)
           }
           return
@@ -574,7 +597,7 @@ export function useCanvasInteraction(
         }
       }
     }
-  }, [canvasRef, getWorldPos, isPanning, pan, setPan, findTargetAt, select, clearSelection, setDragState, toggleWrapSide, removeShape, shapes, shapeOrder])
+  }, [canvasRef, getWorldPos, isPanning, pan, setPan, findTargetAt, select, clearSelection, setDragState, toggleWrapSide, toggleMirror, removeShape, shapes, shapeOrder])
   
   // Mouse move handler
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -750,9 +773,8 @@ export function useCanvasInteraction(
     canvas.addEventListener('wheel', handleWheel, { passive: false })
     
     const handleContextMenu = (e: MouseEvent) => {
-      if (rightClickDragged.current) {
-        e.preventDefault()
-      }
+      // Always prevent context menu on canvas - right click is used for panning
+      e.preventDefault()
     }
     canvas.addEventListener('contextmenu', handleContextMenu)
     

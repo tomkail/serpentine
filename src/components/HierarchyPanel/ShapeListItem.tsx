@@ -3,6 +3,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useDocumentStore } from '../../stores/documentStore'
 import { useSelectionStore } from '../../stores/selectionStore'
+import { MirrorIcon, DeleteIcon } from '../icons/Icons'
 import type { Shape, CircleShape } from '../../types'
 import styles from './HierarchyPanel.module.css'
 
@@ -16,6 +17,7 @@ export function ShapeListItem({ shape }: ShapeListItemProps) {
   const [showAdvanced, setShowAdvanced] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   
+  const shapes = useDocumentStore(state => state.shapes)
   const removeShape = useDocumentStore(state => state.removeShape)
   const renameShape = useDocumentStore(state => state.renameShape)
   const toggleWrapSide = useDocumentStore(state => state.toggleWrapSide)
@@ -169,6 +171,10 @@ export function ShapeListItem({ shape }: ShapeListItemProps) {
   const isEntryTangentLengthDefault = entryTangentLength === 1.0
   const isExitTangentLengthDefault = exitTangentLength === 1.0
   
+  // Can only delete if more than 2 circles exist (must keep at least 2)
+  const circleCount = shapes.filter(s => s.type === 'circle').length
+  const canDelete = circleCount > 2
+  
   return (
     <div
       ref={setNodeRef}
@@ -212,12 +218,14 @@ export function ShapeListItem({ shape }: ShapeListItemProps) {
             onClick={handleToggleMirror}
             title={`Mirror across vertical axis (${circle?.mirrored ? 'enabled' : 'disabled'})`}
           >
-            ⇆
+            <MirrorIcon size={14} />
           </button>
           
-          <button className={styles.actionButton} onClick={handleDelete} title="Delete shape">
-            🗑
-          </button>
+          {canDelete && (
+            <button className={styles.actionButton} onClick={handleDelete} title="Delete shape">
+              <DeleteIcon size={14} />
+            </button>
+          )}
         </div>
       </div>
       

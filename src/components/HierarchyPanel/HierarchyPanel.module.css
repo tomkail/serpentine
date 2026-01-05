@@ -488,3 +488,48 @@
   accent-color: var(--accent-color, #5eb3f0);
 }
 
+/* End mode toggle buttons */
+.endModeGroup {
+  display: flex;
+  gap: 4px;
+}
+
+.endModeButton {
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s, opacity 0.1s;
+  min-width: 32px;
+}
+
+.endModeButton:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.endModeActive {
+  color: var(--accent-color, #5eb3f0);
+  background: rgba(94, 179, 240, 0.15);
+  border-color: rgba(94, 179, 240, 0.3);
+}
+
+.endModeActive:hover:not(:disabled) {
+  color: #7cc4f5;
+  background: rgba(94, 179, 240, 0.25);
+  border-color: rgba(94, 179, 240, 0.4);
+}
+
+.endModeDisabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.endModeButton:disabled {
+  cursor: not-allowed;
+}
+
