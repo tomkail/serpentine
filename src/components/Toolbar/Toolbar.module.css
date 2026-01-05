@@ -52,7 +52,7 @@
 
 .toggle.active {
   background: var(--panel-item-selected);
-  border-color: var(--shape-stroke-selected);
+  border-color: var(--accent-color);
   color: var(--text-primary);
 }
 

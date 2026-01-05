@@ -330,8 +330,42 @@ export function buildTheme(
   semantic: SemanticTokens,
   isDark: boolean
 ): CanvasTheme {
+  // Calculate UI colors based on whether it's dark or light theme
+  const uiColors = isDark ? {
+    panelBg: semantic.surface.shape,
+    panelBorder: semantic.border.muted,
+    panelItemBg: semantic.surface.elevated,
+    panelItemHover: adjustBrightness(semantic.surface.elevated, 1.15),
+    panelItemSelected: adjustBrightness(semantic.surface.elevated, 1.3),
+    textPrimary: primitives.gray200,
+    textSecondary: primitives.gray400,
+    textMuted: primitives.gray500,
+    menuBg: semantic.surface.shape,
+    menuHover: semantic.surface.elevated,
+    menuBorder: semantic.border.muted,
+    scrollbarTrack: semantic.surface.shape,
+    scrollbarThumb: semantic.border.muted,
+    scrollbarThumbHover: semantic.border.default,
+  } : {
+    panelBg: primitives.white,
+    panelBorder: primitives.gray200,
+    panelItemBg: primitives.gray50,
+    panelItemHover: primitives.gray100,
+    panelItemSelected: primitives.gray200,
+    textPrimary: primitives.gray800,
+    textSecondary: primitives.gray600,
+    textMuted: primitives.gray400,
+    menuBg: primitives.white,
+    menuHover: primitives.gray100,
+    menuBorder: primitives.gray200,
+    scrollbarTrack: primitives.gray50,
+    scrollbarThumb: primitives.gray300,
+    scrollbarThumbHover: primitives.gray400,
+  }
+  
   return {
     name,
+    isDark,
     
     // Accent colors - from interactive semantic tokens
     accent: semantic.interactive.default,
@@ -368,6 +402,30 @@ export function buildTheme(
       innerWidth: 2,
       outerWidth: 1.5,
     },
+    
+    // UI colors
+    ui: uiColors,
   }
+}
+
+/**
+ * Adjust brightness of a hex color
+ */
+function adjustBrightness(hex: string, factor: number): string {
+  // Remove # if present
+  const cleanHex = hex.replace('#', '')
+  
+  // Parse RGB
+  const r = parseInt(cleanHex.substr(0, 2), 16)
+  const g = parseInt(cleanHex.substr(2, 2), 16)
+  const b = parseInt(cleanHex.substr(4, 2), 16)
+  
+  // Adjust
+  const newR = Math.min(255, Math.round(r * factor))
+  const newG = Math.min(255, Math.round(g * factor))
+  const newB = Math.min(255, Math.round(b * factor))
+  
+  // Return hex
+  return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`
 }
 

@@ -18,7 +18,7 @@
   background: var(--menu-bg);
   border: 1px solid var(--menu-border);
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 16px var(--shadow-color);
   pointer-events: auto;
   animation: slideIn 0.2s ease-out;
 }
@@ -35,7 +35,7 @@
 }
 
 .toast.info {
-  border-color: #3a6a9a;
+  border-color: var(--accent-dim);
 }
 
 .toast.success {
@@ -47,8 +47,8 @@
 }
 
 .toast.error {
-  border-color: #9a3a3a;
-  background: #1a1010;
+  border-color: var(--danger-dim);
+  background: var(--panel-bg);
 }
 
 .icon {
@@ -63,7 +63,7 @@
 }
 
 .toast.info .icon {
-  color: #6a9aca;
+  color: var(--accent-color);
 }
 
 .toast.success .icon {
@@ -75,7 +75,7 @@
 }
 
 .toast.error .icon {
-  color: #ca6a6a;
+  color: var(--danger);
 }
 
 .content {
@@ -108,7 +108,7 @@
 .details pre {
   margin-top: 8px;
   padding: 8px;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--overlay-medium);
   border-radius: 4px;
   font-family: var(--font-mono);
   font-size: 10px;
@@ -129,6 +129,7 @@
 
 .dismissButton:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--overlay-medium);
 }
+
 

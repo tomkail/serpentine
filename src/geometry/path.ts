@@ -764,6 +764,7 @@ function distanceToBezier(
  * Find the path segment closest to a given point.
  * Returns null if no segment is within the threshold.
  * Only considers connector segments (line/bezier), not arc segments on circles.
+ * If the closest segment is on the mirrored portion, the index is mapped back.
  */
 export function findPathSegmentAt(
   shapes: CircleShape[],
@@ -789,6 +790,9 @@ export function findPathSegmentAt(
   
   const pathData = computeTangentHull(shapes, order, globalStretch, closed, useStartPoint, useEndPoint)
   if (pathData.segments.length === 0) return null
+  
+  // Number of original (non-mirrored) circles
+  const originalCircleCount = order.length
   
   let closestHit: PathHitInfo | null = null
   let closestDist = Infinity
@@ -818,10 +822,19 @@ export function findPathSegmentAt(
     
     if (result.distance < threshold && result.distance < closestDist) {
       closestDist = result.distance
+      
+      // Map mirrored circle indices back to original order
+      let mappedIndex = connectorIndex
+      if (connectorIndex >= originalCircleCount) {
+        // Map from mirrored portion back to original
+        mappedIndex = 2 * originalCircleCount - 1 - connectorIndex
+        mappedIndex = Math.max(0, Math.min(originalCircleCount - 1, mappedIndex))
+      }
+      
       closestHit = {
         segmentIndex: i,
         point: result.closest,
-        fromCircleIndex: connectorIndex
+        fromCircleIndex: mappedIndex
       }
     }
     
@@ -906,6 +919,8 @@ function distanceToArc(
  * and doesn't require a threshold - it always returns the closest point.
  * 
  * Returns the closest point and which circle index to insert after.
+ * If the closest point is on the mirrored portion of the path, the index
+ * is mapped back to the corresponding position in the original order.
  */
 export function findClosestPointOnPath(
   shapes: CircleShape[],
@@ -930,6 +945,9 @@ export function findClosestPointOnPath(
   
   const pathData = computeTangentHull(shapes, order, globalStretch, closed, useStartPoint, useEndPoint)
   if (pathData.segments.length === 0) return null
+  
+  // Number of original (non-mirrored) circles
+  const originalCircleCount = order.length
   
   let closestHit: PathHitInfo | null = null
   let closestDist = Infinity
@@ -966,11 +984,23 @@ export function findClosestPointOnPath(
     if (result.distance < closestDist) {
       closestDist = result.distance
       
-      // Both arcs and connectors for circle[i] insert after circle[i]
+      // Map mirrored circle indices back to original order
+      // Mirrored circles go in reverse order after the originals:
+      // [0, 1, 2, 2', 1', 0'] for n=3 with all mirrored
+      // Index 3 (2') maps to 2, index 4 (1') maps to 1, index 5 (0') maps to 0
+      let mappedIndex = circleIndex
+      if (circleIndex >= originalCircleCount) {
+        // Map from mirrored portion back to original
+        // Formula: (2 * originalCount - 1 - circleIndex)
+        mappedIndex = 2 * originalCircleCount - 1 - circleIndex
+        // Clamp to valid range
+        mappedIndex = Math.max(0, Math.min(originalCircleCount - 1, mappedIndex))
+      }
+      
       closestHit = {
         segmentIndex: i,
         point: result.closest,
-        fromCircleIndex: circleIndex
+        fromCircleIndex: mappedIndex
       }
     }
     
@@ -985,7 +1015,7 @@ export function findClosestPointOnPath(
 
 /**
  * Calculate the maximum radius for a new circle at a given position
- * such that it doesn't overlap any existing circles.
+ * such that it doesn't overlap any existing circles (including mirrored circles).
  * 
  * @param center - The center position for the new circle
  * @param shapes - Existing shapes to avoid
@@ -1000,7 +1030,11 @@ export function calculateNonOverlappingRadius(
 ): number {
   let maxAllowedRadius = maxRadius
   
-  for (const shape of shapes) {
+  // Include mirrored circles in the calculation
+  const mirroredCircles = getMirroredCircles(shapes)
+  const allCircles = [...shapes, ...mirroredCircles]
+  
+  for (const shape of allCircles) {
     if (shape.type === 'circle') {
       const dist = distance(center, shape.center)
       // The maximum radius we can use without overlapping this circle

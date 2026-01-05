@@ -5,6 +5,7 @@ import { MenuBar } from './MenuBar/MenuBar'
 import { Toolbar } from './Toolbar/Toolbar'
 import { Notifications } from './Notifications/Notifications'
 import { ErrorBoundary } from './ErrorBoundary/ErrorBoundary'
+import { ThemeProvider } from './ThemeProvider'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import { initHistoryTracking } from '../stores/historyStore'
 import styles from './App.module.css'
@@ -37,7 +38,9 @@ function AppContent() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <AppContent />
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
     </ErrorBoundary>
   )
 }

@@ -46,8 +46,8 @@ export const MIN_CIRCLE_RADIUS = 5
 export const DUPLICATE_OFFSET = { x: 20, y: 20 }
 
 // Non-overlapping radius calculation
-export const NON_OVERLAP_MIN_RADIUS = 10
-export const NON_OVERLAP_MAX_RADIUS = 200
+export const NON_OVERLAP_MIN_RADIUS = 40
+export const NON_OVERLAP_MAX_RADIUS = 120
 export const CIRCLE_GAP = 2                   // Gap between circles when auto-sizing
 
 // ============================================================================

@@ -22,7 +22,6 @@ import {
 
 /**
  * Midnight theme - Dark background with blue accent
- * This is the default theme
  */
 export const midnightTheme: CanvasTheme = buildTheme(
   'Midnight',
@@ -78,6 +77,7 @@ export const oceanTheme: CanvasTheme = buildTheme(
 
 /**
  * Amber theme - Golden warm accent on warm gray
+ * This is the default theme
  */
 export const amberTheme: CanvasTheme = buildTheme(
   'Amber',
@@ -114,7 +114,7 @@ export const themeList = [
 /**
  * Default theme
  */
-export const defaultTheme = midnightTheme
+export const defaultTheme = amberTheme
 
 /**
  * Export primitives for any code that needs raw values

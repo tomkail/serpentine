@@ -4,6 +4,7 @@
 
 export interface CanvasTheme {
   name: string
+  isDark: boolean          // Whether this is a dark theme
   
   // Accent color (single hue with opacity variations)
   accent: string           // Primary interactive color
@@ -39,6 +40,31 @@ export interface CanvasTheme {
     outerStroke: string    // Light halo for visibility
     innerWidth: number     // Inner stroke weight
     outerWidth: number     // Outer stroke weight
+  }
+  
+  // UI Colors (panels, menus, text)
+  ui: {
+    // Panel colors
+    panelBg: string
+    panelBorder: string
+    panelItemBg: string
+    panelItemHover: string
+    panelItemSelected: string
+    
+    // Text colors
+    textPrimary: string
+    textSecondary: string
+    textMuted: string
+    
+    // Menu colors (can be same as panel)
+    menuBg: string
+    menuHover: string
+    menuBorder: string
+    
+    // Scrollbar
+    scrollbarTrack: string
+    scrollbarThumb: string
+    scrollbarThumbHover: string
   }
 }
 

@@ -345,19 +345,35 @@ export function useCanvasInteraction(
         rightClickDragged.current = true // Suppress context menu
         
         // Reset the appropriate value based on handle type
-        switch (hit.tangentHandle) {
-          case 'entry-offset':
+        // Shift key: reset both entry and exit together
+        const isOffset = hit.tangentHandle === 'entry-offset' || hit.tangentHandle === 'exit-offset'
+        const isLength = hit.tangentHandle === 'entry-length' || hit.tangentHandle === 'exit-length'
+        
+        if (e.shiftKey) {
+          // Reset both entry and exit symmetrically
+          if (isOffset) {
             setEntryOffset(hit.shape.id, 0)
-            break
-          case 'exit-offset':
             setExitOffset(hit.shape.id, 0)
-            break
-          case 'entry-length':
+          } else if (isLength) {
             setEntryTangentLength(hit.shape.id, 1.0)
-            break
-          case 'exit-length':
             setExitTangentLength(hit.shape.id, 1.0)
-            break
+          }
+        } else {
+          // Reset only the clicked handle
+          switch (hit.tangentHandle) {
+            case 'entry-offset':
+              setEntryOffset(hit.shape.id, 0)
+              break
+            case 'exit-offset':
+              setExitOffset(hit.shape.id, 0)
+              break
+            case 'entry-length':
+              setEntryTangentLength(hit.shape.id, 1.0)
+              break
+            case 'exit-length':
+              setExitTangentLength(hit.shape.id, 1.0)
+              break
+          }
         }
         
         setTimeout(() => {
@@ -475,17 +491,21 @@ export function useCanvasInteraction(
             mode = 'tangent-exit-length'
             startTangentLength = shape.exitTangentLength ?? 1.0
           } else if (tangentHandle === 'entry-offset-slot') {
-            // Click on slot resets to default
+            // Click on slot resets to default (shift: reset both)
             setEntryOffset(shape.id, undefined)
+            if (e.shiftKey) setExitOffset(shape.id, undefined)
             return
           } else if (tangentHandle === 'exit-offset-slot') {
             setExitOffset(shape.id, undefined)
+            if (e.shiftKey) setEntryOffset(shape.id, undefined)
             return
           } else if (tangentHandle === 'entry-length-slot') {
             setEntryTangentLength(shape.id, undefined)
+            if (e.shiftKey) setExitTangentLength(shape.id, undefined)
             return
           } else if (tangentHandle === 'exit-length-slot') {
             setExitTangentLength(shape.id, undefined)
+            if (e.shiftKey) setEntryTangentLength(shape.id, undefined)
             return
           }
           
@@ -584,18 +604,24 @@ export function useCanvasInteraction(
         
         newOffset = Math.max(-Math.PI, Math.min(Math.PI, newOffset))
         
-        // Snap to angular increments when snapping is enabled or shift is held
-        if (snapToGridEnabled || e.shiftKey) {
+        // Snap to angular increments when snapping is enabled
+        if (snapToGridEnabled) {
           newOffset = Math.round(newOffset / OFFSET_SNAP_INCREMENT) * OFFSET_SNAP_INCREMENT
         }
         
         // Snap to zero when very close
         if (Math.abs(newOffset) < OFFSET_SNAP_THRESHOLD) newOffset = 0
         
-        if (dragState.mode === 'tangent-entry-offset') {
-          setEntryOffset(shape.id, newOffset === 0 ? undefined : newOffset)
+        const offsetValue = newOffset === 0 ? undefined : newOffset
+        
+        // Shift key: affect both entry and exit offsets symmetrically
+        if (e.shiftKey) {
+          setEntryOffset(shape.id, offsetValue)
+          setExitOffset(shape.id, offsetValue)
+        } else if (dragState.mode === 'tangent-entry-offset') {
+          setEntryOffset(shape.id, offsetValue)
         } else {
-          setExitOffset(shape.id, newOffset === 0 ? undefined : newOffset)
+          setExitOffset(shape.id, offsetValue)
         }
       } else if (dragState.mode === 'tangent-entry-length' || dragState.mode === 'tangent-exit-length') {
         const { expandedShapes, expandedOrder } = expandMirroredCircles(circles, shapeOrder)
@@ -629,18 +655,24 @@ export function useCanvasInteraction(
           let newLength = projectedDist / baseDist
           newLength = Math.max(MIN_TANGENT_LENGTH, Math.min(MAX_TANGENT_LENGTH, newLength))
           
-          // Snap to percentage increments when snapping is enabled or shift is held
-          if (snapToGridEnabled || e.shiftKey) {
+          // Snap to percentage increments when snapping is enabled
+          if (snapToGridEnabled) {
             newLength = Math.round(newLength / LENGTH_SNAP_INCREMENT) * LENGTH_SNAP_INCREMENT
           }
           
           // Snap to default (1.0) when very close
           if (Math.abs(newLength - DEFAULT_TANGENT_LENGTH) < LENGTH_SNAP_THRESHOLD) newLength = DEFAULT_TANGENT_LENGTH
           
-          if (isEntry) {
-            setEntryTangentLength(shape.id, newLength === DEFAULT_TANGENT_LENGTH ? undefined : newLength)
+          const lengthValue = newLength === DEFAULT_TANGENT_LENGTH ? undefined : newLength
+          
+          // Shift key: affect both entry and exit tangent lengths symmetrically
+          if (e.shiftKey) {
+            setEntryTangentLength(shape.id, lengthValue)
+            setExitTangentLength(shape.id, lengthValue)
+          } else if (isEntry) {
+            setEntryTangentLength(shape.id, lengthValue)
           } else {
-            setExitTangentLength(shape.id, newLength === DEFAULT_TANGENT_LENGTH ? undefined : newLength)
+            setExitTangentLength(shape.id, lengthValue)
           }
         }
       }

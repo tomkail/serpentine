@@ -17,7 +17,7 @@
 .errorIcon {
   font-size: 48px;
   margin-bottom: 24px;
-  color: #ca6a6a;
+  color: var(--danger);
 }
 
 .errorTitle {
@@ -51,7 +51,7 @@
 }
 
 .primaryButton {
-  background: var(--shape-stroke-selected);
+  background: var(--accent-color);
   color: var(--canvas-bg);
 }
 
@@ -87,7 +87,7 @@
 }
 
 .errorDetails pre {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--overlay-medium);
   padding: 16px;
   border-radius: 8px;
   font-family: var(--font-mono);
@@ -97,4 +97,5 @@
   max-height: 200px;
   overflow-y: auto;
 }
+
 
