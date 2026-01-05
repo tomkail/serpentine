@@ -1,0 +1,134 @@
+.container {
+  position: fixed;
+  bottom: calc(var(--toolbar-height) + 16px);
+  left: 16px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 400px;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--menu-bg);
+  border: 1px solid var(--menu-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toast.info {
+  border-color: #3a6a9a;
+}
+
+.toast.success {
+  border-color: #3a7a4a;
+}
+
+.toast.warning {
+  border-color: #9a7a3a;
+}
+
+.toast.error {
+  border-color: #9a3a3a;
+  background: #1a1010;
+}
+
+.icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  border-radius: 50%;
+}
+
+.toast.info .icon {
+  color: #6a9aca;
+}
+
+.toast.success .icon {
+  color: #6aca7a;
+}
+
+.toast.warning .icon {
+  color: #caba6a;
+}
+
+.toast.error .icon {
+  color: #ca6a6a;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+}
+
+.message {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.details {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.details summary {
+  cursor: pointer;
+  user-select: none;
+}
+
+.details summary:hover {
+  color: var(--text-primary);
+}
+
+.details pre {
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.dismissButton {
+  flex-shrink: 0;
+  padding: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  border-radius: 4px;
+  transition: all 0.1s;
+}
+
+.dismissButton:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.1);
+}
+

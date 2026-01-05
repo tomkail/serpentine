@@ -1,0 +1,124 @@
+:root {
+  /* Canvas */
+  --canvas-bg: #0a0a0a;
+  --grid-dot: #343434;
+  
+  /* Shapes */
+  --shape-fill: #0f0f0f;
+  --shape-stroke: #333333;
+  --shape-stroke-hover: #4a4a4a;
+  --shape-stroke-selected: #5eb3f0;
+  --shape-handle: #505050;
+  --shape-selection-glow: rgba(94, 179, 240, 0.35);
+  
+  /* Path */
+  --path-stroke: #ffffff;
+  --path-width: 6px;
+  
+  /* Measurements */
+  --measure-text: #4a4a4a;
+  --measure-line: #2a2a2a;
+  
+  /* Panel */
+  --panel-bg: #0d0d0d;
+  --panel-border: #1a1a1a;
+  --panel-item-bg: #141414;
+  --panel-item-hover: #1c1c1c;
+  --panel-item-selected: #252525;
+  
+  /* Text */
+  --text-primary: #c0c0c0;
+  --text-secondary: #606060;
+  --text-muted: #404040;
+  
+  /* Menu */
+  --menu-bg: #111111;
+  --menu-hover: #1a1a1a;
+  --menu-border: #222222;
+  
+  /* Typography */
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+  
+  /* Sizes */
+  --menu-height: 32px;
+  --toolbar-height: 36px;
+  --panel-width: 240px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--canvas-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  padding: 4px 8px;
+  border-radius: 3px;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--shape-stroke-selected);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--panel-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--panel-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Canvas cursor classes */
+.canvas-move { cursor: move !important; }
+.canvas-scale { cursor: nwse-resize !important; }
+.canvas-grab { cursor: grab !important; }
+.canvas-grabbing { cursor: grabbing !important; }
+.canvas-pointer { cursor: pointer !important; }
+.canvas-crosshair { cursor: crosshair !important; }
+

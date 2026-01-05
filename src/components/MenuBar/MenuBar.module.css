@@ -1,0 +1,91 @@
+.menuBar {
+  height: var(--menu-height);
+  background: var(--menu-bg);
+  border-bottom: 1px solid var(--menu-border);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  user-select: none;
+}
+
+.menus {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.menu {
+  position: relative;
+}
+
+.menuButton {
+  padding: 4px 10px;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  transition: all 0.1s;
+}
+
+.menuButton:hover,
+.menuButton.active {
+  background: var(--menu-hover);
+  color: var(--text-primary);
+}
+
+.dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: 180px;
+  background: var(--menu-bg);
+  border: 1px solid var(--menu-border);
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-primary);
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.menuItem:hover:not(:disabled) {
+  background: var(--menu-hover);
+}
+
+.menuItem:disabled {
+  color: var(--text-muted);
+}
+
+.menuItemLabel {
+  flex: 1;
+}
+
+.menuItemShortcut {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-left: 20px;
+}
+
+.title {
+  flex: 1;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.spacer {
+  width: 100px;
+}
+

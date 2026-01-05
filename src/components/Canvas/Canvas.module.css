@@ -1,0 +1,28 @@
+.container {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  background: var(--canvas-bg);
+}
+
+.canvas {
+  display: block;
+  cursor: default;
+}
+
+.canvas.panning {
+  cursor: grabbing;
+}
+
+.canvas.canPan {
+  cursor: grab;
+}
+
+.canvas.move {
+  cursor: move;
+}
+
+.canvas.scale {
+  cursor: nwse-resize;
+}
+
