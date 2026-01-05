@@ -21,13 +21,10 @@ export function renderGrid(
   canvasHeight: number,
   pan: Point,
   zoom: number,
-  baseGridSize: number
+  baseGridSize: number,
+  gridColor: string = '#2a2a2a'
 ) {
-  const style = getComputedStyle(document.documentElement)
-  const dotColor = style.getPropertyValue('--grid-dot').trim() || '#1a1a1a'
-  
-  // Parse the dot color to RGB for alpha compositing
-  const rgb = parseColor(dotColor)
+  const rgb = parseColor(gridColor)
   
   // Calculate visible area in world coordinates
   const worldLeft = -pan.x / zoom
@@ -162,14 +159,15 @@ function smoothstep(t: number): number {
 /**
  * Render the mirror axis line when mirroring is active
  * Draws a vertical dashed line at x=0
- * Uses monochrome color (not accent) since it's non-interactive
+ * Uses grid color (not accent) since it's non-interactive
  */
 export function renderMirrorAxis(
   ctx: CanvasRenderingContext2D,
   _canvasWidth: number,
   canvasHeight: number,
   pan: Point,
-  zoom: number
+  zoom: number,
+  gridColor: string = '#2a2a2a'
 ) {
   // Calculate visible area in world coordinates
   const worldTop = -pan.y / zoom
@@ -180,6 +178,9 @@ export function renderMirrorAxis(
   
   const uiScale = 1 / zoom
   
+  // Parse grid color to RGB for alpha blending
+  const rgb = parseColor(gridColor)
+  
   ctx.save()
   
   // Draw the mirror axis line at x = 0
@@ -187,16 +188,16 @@ export function renderMirrorAxis(
   ctx.moveTo(0, worldTop - margin)
   ctx.lineTo(0, worldBottom + margin)
   
-  // Dashed line style - monochrome (not accent) since it's non-interactive
+  // Dashed line style - uses grid color with higher opacity for visibility
   ctx.setLineDash([12 * uiScale, 6 * uiScale])
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'
+  ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6)`
   ctx.lineWidth = 2 * uiScale
   ctx.stroke()
   
   // Draw small "mirror" label near the top of the visible area
   ctx.setLineDash([])
   ctx.font = `${11 * uiScale}px system-ui, sans-serif`
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.3)'
+  ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)`
   ctx.textAlign = 'center'
   ctx.fillText('⧫', 0, worldTop + 30 * uiScale)
   

@@ -11,6 +11,8 @@ export function Toolbar() {
   const toggleSnap = useSettingsStore(state => state.toggleSnap)
   const measurementMode = useSettingsStore(state => state.measurementMode)
   const cycleMeasurementMode = useSettingsStore(state => state.cycleMeasurementMode)
+  const isolatePath = useSettingsStore(state => state.isolatePath)
+  const setIsolatePath = useSettingsStore(state => state.setIsolatePath)
   
   const zoomPercent = Math.round(zoom * 100)
   
@@ -62,6 +64,20 @@ export function Toolbar() {
           title="Cycle measurement mode (M)"
         >
           {measurementMode.charAt(0).toUpperCase() + measurementMode.slice(1)}
+        </button>
+      </div>
+      
+      <div className={styles.separator} />
+      
+      <div className={styles.group}>
+        <button
+          className={`${styles.toggle} ${isolatePath ? styles.active : ''}`}
+          onMouseDown={() => setIsolatePath(true)}
+          onMouseUp={() => setIsolatePath(false)}
+          onMouseLeave={() => setIsolatePath(false)}
+          title="Hold to isolate path (I)"
+        >
+          Isolate
         </button>
       </div>
     </div>

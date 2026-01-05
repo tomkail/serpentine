@@ -1,4 +1,4 @@
-import { useEffect, useCallback, RefObject, useRef } from 'react'
+import { useEffect, useCallback, RefObject, useRef, useMemo } from 'react'
 import { useDocumentStore } from '../../stores/documentStore'
 import { useViewportStore, screenToWorld } from '../../stores/viewportStore'
 import { useSelectionStore } from '../../stores/selectionStore'
@@ -20,6 +20,7 @@ import { expandMirroredCircles, findPathSegmentAt, calculateNonOverlappingRadius
 import type { Point, CircleShape, DragMode, HoverTarget } from '../../types'
 import {
   HANDLE_TOLERANCE,
+  PATH_HIT_TOLERANCE,
   DRAG_THRESHOLD,
   POSITION_SNAP_INCREMENT,
   RADIUS_SNAP_INCREMENT,
@@ -30,71 +31,9 @@ import {
   DEFAULT_TANGENT_LENGTH,
   MIN_TANGENT_LENGTH,
   MAX_TANGENT_LENGTH,
-  CURSOR_ANGLE_INCREMENT,
   TANGENT_DISTANCE_FACTOR
 } from '../../constants'
-
-/**
- * Generate a "reverse" cursor SVG for the direction toggle
- * Two curved arrows forming a circular swap/reverse icon
- */
-function getReverseCursor(): string {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-    <!-- Outer stroke for visibility -->
-    <path d="M9 3 L5 7 L9 11 M5 7 C5 7 5 12 12 12 M15 21 L19 17 L15 13 M19 17 C19 17 19 12 12 12" 
-          fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-    <!-- Inner stroke -->
-    <path d="M9 3 L5 7 L9 11 M5 7 C5 7 5 12 12 12 M15 21 L19 17 L15 13 M19 17 C19 17 19 12 12 12" 
-          fill="none" stroke="black" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>`
-  
-  return `url('data:image/svg+xml,${encodeURIComponent(svg)}') 12 12, pointer`
-}
-
-// Cache the reverse cursor
-const reverseCursor = getReverseCursor()
-
-/**
- * Generate a rotated scale cursor SVG data URL
- * The cursor arrows point along the circle edge (tangent direction)
- */
-function generateScaleCursor(angleRad: number): string {
-  // Convert to degrees for SVG rotation, add 90° to make arrows tangent to the circle
-  const angleDeg = (angleRad * 180 / Math.PI) + 90
-  
-  // SVG scale cursor - double-headed arrow
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-    <g transform="rotate(${angleDeg}, 12, 12)">
-      <!-- Outer stroke for visibility -->
-      <path d="M12 2 L16 7 L13.5 7 L13.5 17 L16 17 L12 22 L8 17 L10.5 17 L10.5 7 L8 7 Z" 
-            fill="none" stroke="white" stroke-width="2.5" stroke-linejoin="round"/>
-      <!-- Inner fill -->
-      <path d="M12 2 L16 7 L13.5 7 L13.5 17 L16 17 L12 22 L8 17 L10.5 17 L10.5 7 L8 7 Z" 
-            fill="black" stroke="none"/>
-    </g>
-  </svg>`
-  
-  return `url('data:image/svg+xml,${encodeURIComponent(svg)}') 12 12, nwse-resize`
-}
-
-// Cache for generated cursors to avoid regenerating on every frame
-const cursorCache = new Map<number, string>()
-
-/**
- * Get a cached rotated scale cursor for the given angle
- * Quantizes to degree increments for caching efficiency
- */
-function getScaleCursor(angleRad: number): string {
-  // Quantize to degree increments (based on constant)
-  const quantizedDeg = Math.round((angleRad * 180 / Math.PI) / CURSOR_ANGLE_INCREMENT) * CURSOR_ANGLE_INCREMENT
-  const normalizedDeg = ((quantizedDeg % 360) + 360) % 360
-  
-  if (!cursorCache.has(normalizedDeg)) {
-    cursorCache.set(normalizedDeg, generateScaleCursor(normalizedDeg * Math.PI / 180))
-  }
-  
-  return cursorCache.get(normalizedDeg)!
-}
+import { getScaleCursor, getCursorForTarget } from './cursorUtils'
 
 export function useCanvasInteraction(
   canvasRef: RefObject<HTMLCanvasElement>,
@@ -132,6 +71,12 @@ export function useCanvasInteraction(
   
   const snapToGridEnabled = useSettingsStore(state => state.snapToGrid)
   
+  // Memoize circles array to avoid repeated filtering
+  const circles = useMemo(
+    () => shapes.filter((s): s is CircleShape => s.type === 'circle'),
+    [shapes]
+  )
+  
   // Track space key state for panning
   const spaceKeyHeld = useRef(false)
   // Track active panning state
@@ -164,7 +109,6 @@ export function useCanvasInteraction(
     hoverTarget: HoverTarget
     tangentHandle: TangentHandleType
   } => {
-    const circles = shapes.filter((s): s is CircleShape => s.type === 'circle')
     const handleTolerance = HANDLE_TOLERANCE / zoom
     
     // Get expanded shapes/order (including mirrored circles)
@@ -278,49 +222,14 @@ export function useCanvasInteraction(
     }
     
     return { shape: null, hoverTarget: null, tangentHandle: null }
-  }, [shapes, shapeOrder, zoom, selectedIds])
+  }, [shapes, circles, shapeOrder, zoom, selectedIds, closedPath, useStartPoint, useEndPoint])
   
   // Store the scale cursor angle for dynamic rotation
   const scaleCursorAngle = useRef<number>(0)
   
   // Get cursor based on hover target
   const getCursor = useCallback((hoverTarget: HoverTarget, isDragging: boolean): string => {
-    if (isDragging) {
-      const mode = dragState?.mode
-      if (mode === 'move') return 'move'
-      if (mode === 'scale') return getScaleCursor(scaleCursorAngle.current)
-      if (mode?.startsWith('tangent-')) return 'crosshair'
-      return 'grabbing'
-    }
-    
-    if (!hoverTarget) return ''
-    
-    switch (hoverTarget.type) {
-      case 'shape-body':
-        return 'move'
-      case 'shape-edge':
-        return getScaleCursor(scaleCursorAngle.current)
-      case 'direction-ring':
-        return reverseCursor
-      case 'delete-icon':
-        return 'pointer'
-      case 'mirror-icon':
-        return 'pointer'
-      case 'index-dot':
-        return 'pointer'
-      case 'entry-offset':
-      case 'exit-offset':
-      case 'entry-length':
-      case 'exit-length':
-        return 'grab'
-      case 'entry-offset-slot':
-      case 'exit-offset-slot':
-      case 'entry-length-slot':
-      case 'exit-length-slot':
-        return 'pointer'
-      default:
-        return ''
-    }
+    return getCursorForTarget(hoverTarget, isDragging, dragState?.mode ?? null, scaleCursorAngle.current)
   }, [dragState])
   
   // Double-click handler - create circle on path
@@ -341,11 +250,10 @@ export function useCanvasInteraction(
     }
     
     // Check if click is on a path segment
-    const circles = shapes.filter((s): s is CircleShape => s.type === 'circle')
-    const pathHit = findPathSegmentAt(circles, shapeOrder, worldPos, 15 / zoom, globalStretch)
+    const pathHit = findPathSegmentAt(circles, shapeOrder, worldPos, PATH_HIT_TOLERANCE / zoom, globalStretch)
     
     if (pathHit) {
-      // Calculate non-overlapping radius
+      // Calculate non-overlapping radius (reuse the existing circles array from scope)
       const radius = calculateNonOverlappingRadius(pathHit.point, circles)
       
       // Create new circle
@@ -364,7 +272,7 @@ export function useCanvasInteraction(
       // Select the new circle
       select(newCircle.id, false)
     }
-  }, [canvasRef, getWorldPos, findTargetAt, shapes, shapeOrder, globalStretch, zoom, insertShapeAt, select])
+  }, [canvasRef, getWorldPos, findTargetAt, shapes, circles, shapeOrder, globalStretch, zoom, insertShapeAt, select])
 
   // Mouse down handler
   const handleMouseDown = useCallback((e: MouseEvent) => {
@@ -518,7 +426,6 @@ export function useCanvasInteraction(
         
         // Click on tangent handle: start tangent dragging
         if (tangentHandle) {
-          const circles = shapes.filter((s): s is CircleShape => s.type === 'circle')
           const { expandedShapes, expandedOrder } = expandMirroredCircles(circles, shapeOrder)
           const info = computeTangentHandleInfo(shape, expandedShapes, expandedOrder, closedPath, useStartPoint, useEndPoint)
           
@@ -665,7 +572,6 @@ export function useCanvasInteraction(
           setExitOffset(shape.id, newOffset === 0 ? undefined : newOffset)
         }
       } else if (dragState.mode === 'tangent-entry-length' || dragState.mode === 'tangent-exit-length') {
-        const circles = shapes.filter((s): s is CircleShape => s.type === 'circle')
         const { expandedShapes, expandedOrder } = expandMirroredCircles(circles, shapeOrder)
         const info = computeTangentHandleInfo(shape, expandedShapes, expandedOrder, closedPath, useStartPoint, useEndPoint)
         

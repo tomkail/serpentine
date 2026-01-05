@@ -7,7 +7,9 @@ import { useDocumentStore } from '../../stores/documentStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useDebugStore } from '../../stores/debugStore'
 import { useHistoryStore, undo, redo } from '../../stores/historyStore'
+import { useThemeStore } from '../../stores/themeStore'
 import { presets } from '../../utils/presets'
+import { themeList } from '../../themes'
 import styles from './MenuBar.module.css'
 
 export function MenuBar() {
@@ -29,12 +31,18 @@ export function MenuBar() {
   const showArcAngles = useDebugStore(state => state.showArcAngles)
   const showPathOrder = useDebugStore(state => state.showPathOrder)
   const showCircleCenters = useDebugStore(state => state.showCircleCenters)
+  const showArcDirection = useDebugStore(state => state.showArcDirection)
   const toggleTangentPoints = useDebugStore(state => state.toggleTangentPoints)
   const toggleTangentLabels = useDebugStore(state => state.toggleTangentLabels)
   const toggleArcAngles = useDebugStore(state => state.toggleArcAngles)
   const togglePathOrder = useDebugStore(state => state.togglePathOrder)
   const toggleCircleCenters = useDebugStore(state => state.toggleCircleCenters)
+  const toggleArcDirection = useDebugStore(state => state.toggleArcDirection)
   const resetDebug = useDebugStore(state => state.resetDebug)
+  
+  // Theme state
+  const themeName = useThemeStore(state => state.themeName)
+  const setTheme = useThemeStore(state => state.setTheme)
   
   const handleMenuClick = (menuId: string) => {
     setOpenMenu(openMenu === menuId ? null : menuId)
@@ -125,8 +133,19 @@ export function MenuBar() {
     closeMenu()
   }
   
+  const handleToggleArcDirection = () => {
+    toggleArcDirection()
+    closeMenu()
+  }
+  
   const handleResetDebug = () => {
     resetDebug()
+    closeMenu()
+  }
+  
+  // Theme handlers
+  const handleSetTheme = (id: string) => {
+    setTheme(id)
     closeMenu()
   }
   
@@ -193,6 +212,21 @@ export function MenuBar() {
         </Menu>
         
         <Menu
+          label="Theme"
+          isOpen={openMenu === 'theme'}
+          onToggle={() => handleMenuClick('theme')}
+          onClose={closeMenu}
+        >
+          {themeList.map(theme => (
+            <MenuItem 
+              key={theme.id}
+              label={`${themeName === theme.id ? '✓ ' : '   '}${theme.icon} ${theme.name}`}
+              onClick={() => handleSetTheme(theme.id)}
+            />
+          ))}
+        </Menu>
+        
+        <Menu
           label="Debug"
           isOpen={openMenu === 'debug'}
           onToggle={() => handleMenuClick('debug')}
@@ -217,6 +251,10 @@ export function MenuBar() {
           <MenuItem 
             label={`${showCircleCenters ? '✓ ' : '   '}Circle Centers`} 
             onClick={handleToggleCircleCenters} 
+          />
+          <MenuItem 
+            label={`${showArcDirection ? '✓ ' : '   '}Arc Direction`} 
+            onClick={handleToggleArcDirection} 
           />
           <div style={{ height: 1, background: 'var(--menu-border)', margin: '4px 0' }} />
           <MenuItem label="Hide All Debug" onClick={handleResetDebug} />

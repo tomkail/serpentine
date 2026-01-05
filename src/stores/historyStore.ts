@@ -132,7 +132,7 @@ export const useHistoryStore = create<HistoryState>()((set, get) => ({
 function captureSnapshot(): DocumentSnapshot {
   const docStore = useDocumentStore.getState()
   return {
-    shapes: JSON.parse(JSON.stringify(docStore.shapes)), // Deep clone
+    shapes: structuredClone(docStore.shapes), // Deep clone (faster than JSON.parse/stringify)
     shapeOrder: [...docStore.shapeOrder],
     globalStretch: docStore.globalStretch
   }
@@ -142,18 +142,21 @@ function captureSnapshot(): DocumentSnapshot {
 // Uses debouncing to batch rapid changes (like dragging)
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let lastSnapshot: DocumentSnapshot | null = null
-let lastStateString: string | null = null
 let pendingSnapshot: DocumentSnapshot | null = null
+
+// Track last state references for quick comparison
+let lastShapesRef: Shape[] | null = null
+let lastOrderRef: string[] | null = null
+let lastStretch: number | null = null
 
 // Initialize the subscription
 export function initHistoryTracking() {
   // Capture initial state
   lastSnapshot = captureSnapshot()
-  lastStateString = JSON.stringify({
-    shapes: lastSnapshot.shapes,
-    shapeOrder: lastSnapshot.shapeOrder,
-    globalStretch: lastSnapshot.globalStretch
-  })
+  const docStore = useDocumentStore.getState()
+  lastShapesRef = docStore.shapes
+  lastOrderRef = docStore.shapeOrder
+  lastStretch = docStore.globalStretch
   
   // Subscribe to document state changes (standard Zustand subscribe)
   const unsubscribe = useDocumentStore.subscribe((state) => {
@@ -162,14 +165,13 @@ export function initHistoryTracking() {
     // Don't record during undo/redo
     if (historyState.isProgrammaticChange) return
     
-    // Check if anything actually changed by comparing state strings
-    const currentStateString = JSON.stringify({
-      shapes: state.shapes,
-      shapeOrder: state.shapeOrder,
-      globalStretch: state.globalStretch
-    })
+    // Fast path: check reference equality first (most changes create new references)
+    const shapesChanged = state.shapes !== lastShapesRef
+    const orderChanged = state.shapeOrder !== lastOrderRef
+    const stretchChanged = state.globalStretch !== lastStretch
     
-    if (currentStateString === lastStateString) return
+    // If no references changed, no state changed
+    if (!shapesChanged && !orderChanged && !stretchChanged) return
     
     // Capture the previous state immediately if we haven't yet for this change batch
     if (!pendingSnapshot && lastSnapshot) {
@@ -187,9 +189,11 @@ export function initHistoryTracking() {
         useHistoryStore.getState().pushState(pendingSnapshot)
         pendingSnapshot = null
       }
-      // Update lastSnapshot to current state for the next change batch
+      // Update tracking for the next change batch
       lastSnapshot = captureSnapshot()
-      lastStateString = currentStateString
+      lastShapesRef = state.shapes
+      lastOrderRef = state.shapeOrder
+      lastStretch = state.globalStretch
       debounceTimer = null
     }, HISTORY_DEBOUNCE_MS)
   })

@@ -2,6 +2,29 @@ import type { Shape, CircleShape, MeasurementMode, LineSegment } from '../../../
 import { computeTangentHull } from '../../../geometry/path'
 import { MEASUREMENT_LABEL_OFFSET } from '../../../constants'
 
+// Cache for measurement CSS values
+let measureCssCache: { textColor: string } | null = null
+let lastMeasureThemeCheck = 0
+
+function getMeasureCssValues(): { textColor: string } {
+  const now = performance.now()
+  if (measureCssCache && now - lastMeasureThemeCheck < 16) {
+    return measureCssCache
+  }
+  lastMeasureThemeCheck = now
+  
+  const style = getComputedStyle(document.documentElement)
+  measureCssCache = {
+    textColor: style.getPropertyValue('--measure-text').trim() || '#4a4a4a'
+  }
+  return measureCssCache
+}
+
+// Allow external invalidation when theme changes
+export function invalidateMeasurementStyleCache() {
+  measureCssCache = null
+}
+
 /**
  * Render measurements on the canvas
  */
@@ -17,8 +40,7 @@ export function renderMeasurements(
 ) {
   if (mode === 'clean') return
   
-  const style = getComputedStyle(document.documentElement)
-  const textColor = style.getPropertyValue('--measure-text').trim() || '#4a4a4a'
+  const { textColor } = getMeasureCssValues()
   
   // Scale factor for constant screen size
   const uiScale = 1 / zoom

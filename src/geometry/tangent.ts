@@ -1,11 +1,12 @@
 import type { Point } from '../types'
-import { distance, angle, pointOnCircle, normalizeAngle } from './math'
+import { distance, angle, pointOnCircle, normalizeAngle, circleIntersections } from './math'
 
 export interface TangentResult {
   p1: Point  // Tangent point on first circle
   p2: Point  // Tangent point on second circle
   angle1: number  // Angle on first circle where tangent touches
   angle2: number  // Angle on second circle where tangent touches
+  isIntersection?: boolean  // True if this is an intersection point (not a true tangent)
 }
 
 /**
@@ -75,6 +76,10 @@ export function externalTangent(
  * - Touch points are on opposite sides of each circle relative to the tangent direction
  * - cos(touchAngle1 - theta) = (r1 + r2) / d (approximately, for the crossing point)
  * 
+ * When circles overlap (no true internal tangent exists), this function returns
+ * the intersection point as a fallback - the path will go to the intersection point
+ * on the first circle and continue from the intersection point on the second circle.
+ * 
  * @param side - determines which of the two internal tangents to use
  */
 export function internalTangent(
@@ -84,19 +89,57 @@ export function internalTangent(
 ): TangentResult | null {
   const d = distance(c1, c2)
   
-  // Circles overlap - no internal tangent possible
-  if (d < r1 + r2 + 0.001) {
-    return null
-  }
-  
   // Angle from c1 to c2
   const theta = angle(c1, c2)
   
-  // For internal tangent:
-  // The tangent line crosses between circles at some point P
-  // P divides the segment c1-c2 in ratio r1:r2
-  // cos(touchAngle1 - theta) = r1 / d1 where d1 = distance from c1 to crossing point
-  // The crossing point is at distance d * r1 / (r1 + r2) from c1
+  // Circles overlap - use intersection point as fallback
+  if (d < r1 + r2 + 0.001) {
+    const intersections = circleIntersections(c1, r1, c2, r2)
+    
+    if (!intersections || intersections.length === 0) {
+      // One circle contains the other or they're concentric - no valid connection
+      return null
+    }
+    
+    // Choose the appropriate intersection point based on 'side'
+    // For internal tangent with 'right' side, we want the intersection point
+    // that's on the right when looking from c1 to c2
+    let intersectionPoint: Point
+    
+    if (intersections.length === 1) {
+      // Circles are tangent - only one intersection point
+      intersectionPoint = intersections[0]
+    } else {
+      // Two intersection points - choose based on side
+      // Calculate which point is on which side using cross product
+      const dx = c2.x - c1.x
+      const dy = c2.y - c1.y
+      
+      // Cross product to determine which side each intersection is on
+      const cross0 = dx * (intersections[0].y - c1.y) - dy * (intersections[0].x - c1.x)
+      
+      // Positive cross = left side, negative cross = right side
+      if (side === 'right') {
+        intersectionPoint = cross0 < 0 ? intersections[0] : intersections[1]
+      } else {
+        intersectionPoint = cross0 > 0 ? intersections[0] : intersections[1]
+      }
+    }
+    
+    // Calculate angles from each center to the intersection point
+    const angle1 = angle(c1, intersectionPoint)
+    const angle2 = angle(c2, intersectionPoint)
+    
+    return {
+      p1: intersectionPoint,
+      p2: intersectionPoint,  // Same point - they meet at the intersection
+      angle1: normalizeAngle(angle1),
+      angle2: normalizeAngle(angle2),
+      isIntersection: true
+    }
+  }
+  
+  // Normal case: circles don't overlap, calculate true internal tangent
   
   // Simpler approach: sin(offset) = (r1 + r2) / d
   const sinOffset = (r1 + r2) / d
@@ -131,6 +174,13 @@ export function internalTangent(
 /**
  * Get the appropriate tangent between two circles based on their path directions.
  * 
+ * For CW rotation, velocity at TOP points right, at BOTTOM points left.
+ * For CCW rotation, velocity at TOP points left, at BOTTOM points right.
+ * 
+ * The tangent should exit from the point where velocity points toward the next circle.
+ * 'left' side tangent = tangent line is above/left of center line (exits from top when c2 is right)
+ * 'right' side tangent = tangent line is below/right of center line (exits from bottom when c2 is right)
+ * 
  * @param fromDir - direction path travels around first circle ('cw' or 'ccw')
  * @param toDir - direction path travels around second circle
  */
@@ -140,8 +190,10 @@ export function getTangentForDirections(
 ): TangentResult | null {
   const sameDirection = fromDir === toDir
   
-  // Map direction to tangent side: 'cw' → 'right', 'ccw' → 'left'
-  const side = fromDir === 'cw' ? 'right' : 'left'
+  // Map direction to tangent side:
+  // CW exits from where velocity points toward next circle = 'left' side (top when c2 is right)
+  // CCW exits from where velocity points toward next circle = 'right' side (bottom when c2 is right)
+  const side = fromDir === 'cw' ? 'left' : 'right'
   
   if (sameDirection) {
     // Same direction: use external tangent

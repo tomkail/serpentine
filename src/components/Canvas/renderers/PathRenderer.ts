@@ -4,6 +4,9 @@ import { pointOnCircle } from '../../../geometry/math'
 import { useDebugStore } from '../../../stores/debugStore'
 import { PATH_LABEL_OFFSET } from '../../../constants'
 
+// Default path width in pixels (constant screen size)
+const DEFAULT_PATH_WIDTH = 6
+
 /**
  * Render the tangent hull path around the shapes.
  * Stretch deforms circular arcs into elliptical arcs.
@@ -16,7 +19,8 @@ export function renderPath(
   globalStretch: number = 0,
   closed: boolean = true,
   useStartPoint: boolean = true,
-  useEndPoint: boolean = true
+  useEndPoint: boolean = true,
+  pathStroke: string = '#ffffff'
 ) {
   const circles = shapes.filter((s): s is CircleShape => s.type === 'circle')
   
@@ -26,15 +30,11 @@ export function renderPath(
   
   if (pathData.segments.length === 0) return
   
-  const style = getComputedStyle(document.documentElement)
-  const pathStroke = style.getPropertyValue('--path-stroke').trim() || '#a0a0a0'
-  const pathWidth = parseFloat(style.getPropertyValue('--path-width')) || 2
-  
   // Scale factor for constant screen size
   const uiScale = 1 / zoom
   
   ctx.strokeStyle = pathStroke
-  ctx.lineWidth = pathWidth * uiScale // Constant screen width
+  ctx.lineWidth = DEFAULT_PATH_WIDTH * uiScale // Constant screen width
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
   
@@ -46,10 +46,13 @@ export function renderPath(
   for (let i = 0; i < pathData.segments.length; i++) {
     const seg = pathData.segments[i]
     
+    // Check if this segment needs to start a new sub-path (due to skipped invalid tangent)
+    const needsMoveTo = seg.needsMoveTo || !started
+    
     if (seg.type === 'arc') {
       const arc = seg as ArcSegment
       
-      if (!started) {
+      if (needsMoveTo) {
         // Move to the start of the arc
         const startPt = pointOnCircle(arc.center, arc.radius, arc.startAngle)
         ctx.moveTo(startPt.x, startPt.y)
@@ -62,7 +65,7 @@ export function renderPath(
     } else if (seg.type === 'line') {
       const line = seg as LineSegment
       
-      if (!started) {
+      if (needsMoveTo) {
         ctx.moveTo(line.start.x, line.start.y)
         started = true
       }
@@ -72,7 +75,7 @@ export function renderPath(
     } else if (seg.type === 'bezier') {
       const bezier = seg as BezierSegment
       
-      if (!started) {
+      if (needsMoveTo) {
         ctx.moveTo(bezier.start.x, bezier.start.y)
         started = true
       }
@@ -86,7 +89,7 @@ export function renderPath(
     } else if (seg.type === 'ellipse-arc') {
       const ellipse = seg as EllipseArcSegment
       
-      if (!started) {
+      if (needsMoveTo) {
         // Calculate start point on ellipse
         const startX = ellipse.center.x + ellipse.radiusX * Math.cos(ellipse.startAngle) * Math.cos(ellipse.rotation) 
                      - ellipse.radiusY * Math.sin(ellipse.startAngle) * Math.sin(ellipse.rotation)
@@ -135,6 +138,7 @@ function renderDebugInfo(
     showArcAngles: boolean
     showPathOrder: boolean
     showCircleCenters: boolean
+    showArcDirection: boolean
   },
   zoom: number
 ) {
@@ -273,6 +277,60 @@ function renderDebugInfo(
       
       // Radius
       ctx.fillText(`r=${Math.round(circle.radius)}`, circle.center.x + 5 * uiScale, circle.center.y + 12 * uiScale)
+    }
+  }
+  
+  // Arc direction visualization - shows entry/exit points and expected traversal direction
+  if (debug.showArcDirection) {
+    const fontSize = Math.round(10 * uiScale)
+    ctx.font = `bold ${fontSize}px monospace`
+    
+    for (let i = 0; i < arcs.length; i++) {
+      const arc = arcs[i]
+      const circle = circles.find(c => 
+        Math.abs(c.center.x - arc.center.x) < 1 && 
+        Math.abs(c.center.y - arc.center.y) < 1
+      )
+      
+      // Entry point (startAngle) - BLUE
+      const entryPt = pointOnCircle(arc.center, arc.radius, arc.startAngle)
+      ctx.fillStyle = '#0088ff'
+      ctx.beginPath()
+      ctx.arc(entryPt.x, entryPt.y, 8 * uiScale, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = '#ffffff'
+      ctx.fillText('E', entryPt.x - 4 * uiScale, entryPt.y + 4 * uiScale)
+      
+      // Exit point (endAngle) - ORANGE
+      const exitPt = pointOnCircle(arc.center, arc.radius, arc.endAngle)
+      ctx.fillStyle = '#ff8800'
+      ctx.beginPath()
+      ctx.arc(exitPt.x, exitPt.y, 8 * uiScale, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = '#ffffff'
+      ctx.fillText('X', exitPt.x - 4 * uiScale, exitPt.y + 4 * uiScale)
+      
+      // Label showing angles and direction
+      const labelX = arc.center.x
+      const labelY = arc.center.y - arc.radius - 30 * uiScale
+      ctx.fillStyle = '#ffffff'
+      ctx.font = `${Math.round(9 * uiScale)}px monospace`
+      const startDeg = Math.round(arc.startAngle * 180 / Math.PI)
+      const endDeg = Math.round(arc.endAngle * 180 / Math.PI)
+      // Arc direction is flipped: counterclockwise=false means CW circle, counterclockwise=true means CCW circle
+      const dirLabel = arc.counterclockwise ? 'CCW(inc)' : 'CW(dec)'
+      ctx.fillText(`${startDeg}°→${endDeg}° ${dirLabel}`, labelX - 40 * uiScale, labelY)
+      
+      // Show circle's intended direction vs arc's actual direction
+      if (circle) {
+        const circleDir = circle.direction ?? 'cw'
+        // counterclockwise=false means CW circle (flipped from canvas convention)
+        const arcDir = arc.counterclockwise ? 'ccw' : 'cw'
+        const match = circleDir === arcDir ? '✓' : '✗'
+        const matchColor = circleDir === arcDir ? '#00ff00' : '#ff0000'
+        ctx.fillStyle = matchColor
+        ctx.fillText(`circle:${circleDir} arc:${arcDir} ${match}`, labelX - 40 * uiScale, labelY + 12 * uiScale)
+      }
     }
   }
 }

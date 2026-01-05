@@ -52,6 +52,7 @@ export interface LineSegment {
   start: Point
   end: Point
   length: number
+  needsMoveTo?: boolean  // If true, start a new sub-path before drawing
 }
 
 export interface BezierSegment {
@@ -61,6 +62,7 @@ export interface BezierSegment {
   cp2: Point  // Second control point (near end)
   end: Point
   length: number
+  needsMoveTo?: boolean  // If true, start a new sub-path before drawing
 }
 
 export interface ArcSegment {
@@ -71,6 +73,7 @@ export interface ArcSegment {
   endAngle: number
   counterclockwise: boolean  // Passed directly to canvas arc() counterclockwise param
   length: number
+  needsMoveTo?: boolean  // If true, start a new sub-path before drawing
 }
 
 export interface EllipseArcSegment {
@@ -83,6 +86,7 @@ export interface EllipseArcSegment {
   endAngle: number    // End angle in ellipse local coords
   counterclockwise: boolean  // Direction to draw the arc
   length: number
+  needsMoveTo?: boolean  // If true, start a new sub-path before drawing
 }
 
 export type PathSegment = LineSegment | BezierSegment | ArcSegment | EllipseArcSegment
@@ -140,5 +144,27 @@ export interface SerpentineDocument {
 }
 
 // Re-export theme types
-export type { CanvasTheme, HoverTarget } from './theme'
+export type { CanvasTheme } from './theme'
+
+/**
+ * Hover target types for interaction tracking
+ */
+export type HoverTarget = 
+  | { type: 'shape-body'; shapeId: string }
+  | { type: 'shape-edge'; shapeId: string }
+  | { type: 'direction-ring'; shapeId: string }
+  | { type: 'delete-icon'; shapeId: string }
+  | { type: 'mirror-icon'; shapeId: string }
+  | { type: 'order-prev'; shapeId: string }
+  | { type: 'order-next'; shapeId: string }
+  | { type: 'index-dot'; shapeId: string; dotIndex: number }
+  | { type: 'entry-offset'; shapeId: string }
+  | { type: 'exit-offset'; shapeId: string }
+  | { type: 'entry-length'; shapeId: string }
+  | { type: 'exit-length'; shapeId: string }
+  | { type: 'entry-offset-slot'; shapeId: string }
+  | { type: 'exit-offset-slot'; shapeId: string }
+  | { type: 'entry-length-slot'; shapeId: string }
+  | { type: 'exit-length-slot'; shapeId: string }
+  | null
 

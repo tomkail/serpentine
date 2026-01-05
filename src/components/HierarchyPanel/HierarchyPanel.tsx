@@ -19,6 +19,7 @@ import { useViewportStore, screenToWorld } from '../../stores/viewportStore'
 import { useCanvasStore } from '../../stores/canvasStore'
 import { ShapeListItem } from './ShapeListItem'
 import { PathInfo } from './PathInfo'
+import { SvgPreview } from './SvgPreview'
 import { createCircle } from '../../geometry/shapes/Circle'
 import styles from './HierarchyPanel.module.css'
 import { DEFAULT_CIRCLE_RADIUS, DND_ACTIVATION_DISTANCE } from '../../constants'
@@ -46,11 +47,14 @@ export function HierarchyPanel() {
     })
   )
   
+  // Build a Map for O(1) lookups instead of O(n) .find() calls
+  const shapeMap = useMemo(() => new Map(shapes.map(s => [s.id, s])), [shapes])
+  
   const orderedShapes = useMemo(() => {
     return shapeOrder
-      .map(id => shapes.find(s => s.id === id))
+      .map(id => shapeMap.get(id))
       .filter((s): s is NonNullable<typeof s> => s !== undefined)
-  }, [shapes, shapeOrder])
+  }, [shapeOrder, shapeMap])
   
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
@@ -106,6 +110,8 @@ export function HierarchyPanel() {
       <button className={styles.addButton} onClick={handleAddCircle}>
         + Add Circle
       </button>
+      
+      <SvgPreview />
     </div>
   )
 }

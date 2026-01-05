@@ -95,6 +95,17 @@ const createDefaultDocument = (): Pick<DocumentState, 'shapes' | 'shapeOrder' | 
   }
 }
 
+// Helper to update a specific circle by ID
+const updateCircleById = (
+  shapes: Shape[],
+  id: string,
+  update: Partial<CircleShape>
+): Shape[] => shapes.map(shape =>
+  shape.id === id && shape.type === 'circle'
+    ? { ...shape, ...update }
+    : shape
+)
+
 export const useDocumentStore = create<DocumentState>()(
   persist(
     (set, get) => ({
@@ -142,45 +153,27 @@ export const useDocumentStore = create<DocumentState>()(
       }),
       
       setCircleStretch: (id, stretch) => set((state) => ({
-        shapes: state.shapes.map(shape =>
-          shape.id === id && shape.type === 'circle'
-            ? { ...shape, stretch: stretch !== undefined ? Math.max(-1, Math.min(1, stretch)) : undefined }
-            : shape
-        )
+        shapes: updateCircleById(state.shapes, id, {
+          stretch: stretch !== undefined ? Math.max(-1, Math.min(1, stretch)) : undefined
+        })
       })),
       
       // Tangent offset: angle in radians to rotate contact points (entry/exit separately)
       setEntryOffset: (id, offset) => set((state) => ({
-        shapes: state.shapes.map(shape =>
-          shape.id === id && shape.type === 'circle'
-            ? { ...shape, entryOffset: offset }
-            : shape
-        )
+        shapes: updateCircleById(state.shapes, id, { entryOffset: offset })
       })),
       
       setExitOffset: (id, offset) => set((state) => ({
-        shapes: state.shapes.map(shape =>
-          shape.id === id && shape.type === 'circle'
-            ? { ...shape, exitOffset: offset }
-            : shape
-        )
+        shapes: updateCircleById(state.shapes, id, { exitOffset: offset })
       })),
       
       // Tangent length multipliers
       setEntryTangentLength: (id, length) => set((state) => ({
-        shapes: state.shapes.map(shape =>
-          shape.id === id && shape.type === 'circle'
-            ? { ...shape, entryTangentLength: length }
-            : shape
-        )
+        shapes: updateCircleById(state.shapes, id, { entryTangentLength: length })
       })),
       
       setExitTangentLength: (id, length) => set((state) => ({
-        shapes: state.shapes.map(shape =>
-          shape.id === id && shape.type === 'circle'
-            ? { ...shape, exitTangentLength: length }
-            : shape
-        )
+        shapes: updateCircleById(state.shapes, id, { exitTangentLength: length })
       })),
       
       // Get effective stretch for a circle (circle override or global)
@@ -227,26 +220,14 @@ export const useDocumentStore = create<DocumentState>()(
       },
       
       toggleDirection: (id) => set((state) => ({
-        shapes: state.shapes.map(shape => {
-          if (shape.id === id && shape.type === 'circle') {
-            return {
-              ...shape,
-              direction: shape.direction === 'cw' ? 'ccw' : 'cw'
-            }
-          }
-          return shape
+        shapes: updateCircleById(state.shapes, id, {
+          direction: (state.shapes.find(s => s.id === id) as CircleShape)?.direction === 'cw' ? 'ccw' : 'cw'
         })
       })),
       
       toggleMirror: (id) => set((state) => ({
-        shapes: state.shapes.map(shape => {
-          if (shape.id === id && shape.type === 'circle') {
-            return {
-              ...shape,
-              mirrored: !shape.mirrored
-            }
-          }
-          return shape
+        shapes: updateCircleById(state.shapes, id, {
+          mirrored: !(state.shapes.find(s => s.id === id) as CircleShape)?.mirrored
         })
       })),
       

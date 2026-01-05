@@ -215,7 +215,7 @@ function isValidPoint(point: unknown): point is Point {
 /**
  * Convert path segments to an SVG path string
  */
-function pathSegmentsToSvgPath(segments: PathSegment[], closed: boolean): string {
+export function pathSegmentsToSvgPath(segments: PathSegment[], closed: boolean): string {
   if (segments.length === 0) return ''
   
   const commands: string[] = []
@@ -329,7 +329,7 @@ function pathSegmentsToSvgPath(segments: PathSegment[], closed: boolean): string
 /**
  * Calculate bounding box of path segments
  */
-function calculatePathBounds(segments: PathSegment[]): { minX: number, minY: number, maxX: number, maxY: number } {
+export function calculatePathBounds(segments: PathSegment[]): { minX: number, minY: number, maxX: number, maxY: number } {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
   
   const updateBounds = (x: number, y: number) => {

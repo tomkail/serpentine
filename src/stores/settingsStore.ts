@@ -9,6 +9,7 @@ interface SettingsState {
   gridSize: number
   measurementMode: MeasurementMode
   showGrid: boolean
+  isolatePath: boolean  // When true, only show path (hide circles, grid, background)
   
   // Actions
   toggleSnap: () => void
@@ -17,6 +18,7 @@ interface SettingsState {
   cycleMeasurementMode: () => void
   setMeasurementMode: (mode: MeasurementMode) => void
   toggleGrid: () => void
+  setIsolatePath: (enabled: boolean) => void
 }
 
 const MEASUREMENT_MODES: MeasurementMode[] = ['clean', 'minimal', 'detailed']
@@ -28,6 +30,7 @@ export const useSettingsStore = create<SettingsState>()(
       gridSize: DEFAULT_GRID_SIZE,
       measurementMode: 'minimal',
       showGrid: true,
+      isolatePath: false,
       
       toggleSnap: () => set((state) => ({
         snapToGrid: !state.snapToGrid
@@ -49,10 +52,13 @@ export const useSettingsStore = create<SettingsState>()(
       
       toggleGrid: () => set((state) => ({
         showGrid: !state.showGrid
-      }))
+      })),
+      
+      setIsolatePath: (enabled) => set({ isolatePath: enabled })
     }),
     {
       name: 'serpentine-settings',
+      // Note: isolatePath is NOT persisted - it's a transient UI state
       partialize: (state) => ({
         snapToGrid: state.snapToGrid,
         gridSize: state.gridSize,

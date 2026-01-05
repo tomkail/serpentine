@@ -98,3 +98,60 @@ export function snapPointToGrid(point: Point, gridSize: number): Point {
   }
 }
 
+/**
+ * Calculate intersection points of two circles.
+ * Returns null if circles don't intersect, or an array of 1-2 intersection points.
+ * 
+ * When circles overlap (not concentric), there are exactly 2 intersection points.
+ * When circles are tangent, there is 1 intersection point.
+ * When circles don't intersect or one contains the other, returns null.
+ */
+export function circleIntersections(
+  c1: Point, r1: number,
+  c2: Point, r2: number
+): Point[] | null {
+  const d = distance(c1, c2)
+  
+  // Circles are too far apart (no intersection)
+  if (d > r1 + r2) return null
+  
+  // One circle contains the other (no intersection)
+  if (d < Math.abs(r1 - r2)) return null
+  
+  // Circles are concentric (infinite or no intersections)
+  if (d === 0) return null
+  
+  // Calculate intersection points using the standard formula
+  // a = distance from c1 to the line connecting intersection points
+  const a = (r1 * r1 - r2 * r2 + d * d) / (2 * d)
+  
+  // h = half the distance between the two intersection points
+  const hSquared = r1 * r1 - a * a
+  
+  // Due to floating point errors, hSquared might be slightly negative when circles are tangent
+  if (hSquared < 0) {
+    // Circles are tangent (single intersection point)
+    const ratio = a / d
+    return [{
+      x: c1.x + ratio * (c2.x - c1.x),
+      y: c1.y + ratio * (c2.y - c1.y)
+    }]
+  }
+  
+  const h = Math.sqrt(hSquared)
+  
+  // Point P is on the line between centers, at distance 'a' from c1
+  const px = c1.x + a * (c2.x - c1.x) / d
+  const py = c1.y + a * (c2.y - c1.y) / d
+  
+  // The two intersection points are perpendicular to the line between centers
+  // at distance h from point P
+  const dx = h * (c2.y - c1.y) / d
+  const dy = h * (c2.x - c1.x) / d
+  
+  return [
+    { x: px + dx, y: py - dy },
+    { x: px - dx, y: py + dy }
+  ]
+}
+

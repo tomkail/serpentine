@@ -23,6 +23,7 @@ export function useKeyboardShortcuts() {
   const cycleMeasurementMode = useSettingsStore(state => state.cycleMeasurementMode)
   const showGrid = useSettingsStore(state => state.showGrid)
   const toggleGrid = useSettingsStore(state => state.toggleGrid)
+  const setIsolatePath = useSettingsStore(state => state.setIsolatePath)
   
   const canUndo = useHistoryStore(state => state.canUndo)
   const canRedo = useHistoryStore(state => state.canRedo)
@@ -153,10 +154,28 @@ export function useKeyboardShortcuts() {
         resetView()
         return
       }
+      
+      // Isolate path (hold to activate)
+      if ((e.key === 'i' || e.key === 'I') && !isMod && !e.repeat) {
+        setIsolatePath(true)
+        return
+      }
+    }
+    
+    const handleKeyUp = (e: KeyboardEvent) => {
+      // Release isolate path mode
+      if (e.key === 'i' || e.key === 'I') {
+        setIsolatePath(false)
+        return
+      }
     }
     
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
   }, [
     shapes,
     shapeOrder,
@@ -171,6 +190,7 @@ export function useKeyboardShortcuts() {
     cycleMeasurementMode,
     showGrid,
     toggleGrid,
+    setIsolatePath,
     canUndo,
     canRedo,
     info

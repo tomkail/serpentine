@@ -208,9 +208,9 @@ export function ShapeListItem({ shape }: ShapeListItemProps) {
           <button 
             className={styles.actionButton}
             onClick={handleToggleDirection}
-            title={`Path direction (click to toggle)`}
+            title={direction === 'cw' ? 'Clockwise (click to change)' : 'Counter-clockwise (click to change)'}
           >
-            {direction === 'cw' ? '↺' : '↻'}
+            {direction === 'cw' ? '↻' : '↺'}
           </button>
           
           <button 

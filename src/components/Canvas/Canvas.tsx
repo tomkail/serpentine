@@ -36,6 +36,7 @@ export function Canvas() {
   const gridSize = useSettingsStore(state => state.gridSize)
   const showGrid = useSettingsStore(state => state.showGrid)
   const measurementMode = useSettingsStore(state => state.measurementMode)
+  const isolatePath = useSettingsStore(state => state.isolatePath)
   const theme = useThemeStore(state => state.theme)
   
   // Debug state - subscribe to trigger re-render when debug settings change
@@ -63,8 +64,9 @@ export function Canvas() {
     if (!canvas || !ctx) return
     
     try {
-      // Clear canvas with theme background
-      ctx.fillStyle = theme.background
+      // Clear canvas with background
+      // In isolate mode, use a clean neutral background instead of theme background
+      ctx.fillStyle = isolatePath ? '#000000' : theme.background
       ctx.fillRect(0, 0, canvas.width, canvas.height)
       
       // Save context and apply viewport transform
@@ -72,22 +74,31 @@ export function Canvas() {
       ctx.translate(pan.x, pan.y)
       ctx.scale(zoom, zoom)
       
+      // In isolate mode, only render the path - skip everything else
+      if (isolatePath) {
+        // Path only
+        renderPath(ctx, shapes, shapeOrder, zoom, globalStretch, closedPath, useStartPoint, useEndPoint, theme.pathStroke)
+        ctx.restore()
+        lastRenderErrorRef.current = null
+        return
+      }
+      
       // Render layers (back to front)
       if (showGrid) {
-        renderGrid(ctx, canvas.width, canvas.height, pan, zoom, gridSize)
+        renderGrid(ctx, canvas.width, canvas.height, pan, zoom, gridSize, theme.gridColor)
       }
       
       // Draw mirror axis if any circle has mirroring enabled
       const hasMirroredCircles = shapes.some(s => s.type === 'circle' && s.mirrored)
       if (hasMirroredCircles) {
-        renderMirrorAxis(ctx, canvas.width, canvas.height, pan, zoom)
+        renderMirrorAxis(ctx, canvas.width, canvas.height, pan, zoom, theme.gridColor)
       }
       
       // Shapes first (below path)
       renderShapes(ctx, shapes, selectedIds, hoveredId, hoverTarget, theme, zoom, shapeOrder)
       
       // Path on top of shapes
-      renderPath(ctx, shapes, shapeOrder, zoom, globalStretch, closedPath, useStartPoint, useEndPoint)
+      renderPath(ctx, shapes, shapeOrder, zoom, globalStretch, closedPath, useStartPoint, useEndPoint, theme.pathStroke)
       
       // Tangent handles on top of path (for selected circles)
       renderSelectedTangentHandles(ctx, shapes, selectedIds, hoverTarget, shapeOrder, theme, zoom, closedPath, useStartPoint, useEndPoint)
@@ -128,7 +139,7 @@ export function Canvas() {
         reportError(error, 'Canvas render error')
       }
     }
-  }, [shapes, shapeOrder, globalStretch, closedPath, useStartPoint, useEndPoint, pan, zoom, selectedIds, hoveredId, hoverTarget, dragState, gridSize, showGrid, measurementMode, debugSettings, theme])
+  }, [shapes, shapeOrder, globalStretch, closedPath, useStartPoint, useEndPoint, pan, zoom, selectedIds, hoveredId, hoverTarget, dragState, gridSize, showGrid, measurementMode, isolatePath, debugSettings, theme])
   
   // Store canvas dimensions
   const setCanvasDimensions = useCanvasStore(state => state.setDimensions)

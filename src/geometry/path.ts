@@ -51,9 +51,12 @@ export function expandMirroredCircles(
   shapes: CircleShape[],
   order: string[]
 ): { expandedShapes: CircleShape[], expandedOrder: string[] } {
-  // Get ordered circles
+  // Build lookup map for O(1) access
+  const shapeMap = new Map(shapes.map(s => [s.id, s]))
+  
+  // Get ordered circles using map lookup
   const orderedCircles = order
-    .map(id => shapes.find(s => s.id === id))
+    .map(id => shapeMap.get(id))
     .filter((s): s is CircleShape => s !== undefined && s.type === 'circle')
   
   // Find circles that should be mirrored
@@ -105,8 +108,11 @@ export function createStretchResolver(
   shapes: CircleShape[],
   globalStretch: number
 ): StretchResolver {
+  // Build lookup map once for O(1) access in the resolver
+  const shapeMap = new Map(shapes.map(s => [s.id, s]))
+  
   return (circleId: string): number => {
-    const circle = shapes.find(s => s.id === circleId)
+    const circle = shapeMap.get(circleId)
     if (!circle) return globalStretch
     
     // Circle-level override, or fall back to global
@@ -148,9 +154,12 @@ export function computeTangentHull(
   // Expand shapes to include mirrored circles
   const { expandedShapes, expandedOrder } = expandMirroredCircles(shapes, order)
   
-  // Get ordered circles from expanded set
+  // Build lookup map for O(1) access
+  const shapeMap = new Map(expandedShapes.map(s => [s.id, s]))
+  
+  // Get ordered circles from expanded set using map lookup
   const orderedCircles = expandedOrder
-    .map(id => expandedShapes.find(s => s.id === id))
+    .map(id => shapeMap.get(id))
     .filter((s): s is CircleShape => s !== undefined && s.type === 'circle')
   
   if (orderedCircles.length < 2) {
@@ -176,17 +185,18 @@ export function computeTangentHull(
     tangents.push(tangent)
   }
   
-  // Check if we have valid tangents
-  const allValid = tangents.every(t => t !== null)
-  if (!allValid) {
-    return computePartialPath(tangents)
-  }
+  // Note: We no longer bail out early when some tangents are null.
+  // Instead, we handle invalid tangents gracefully in the main loop,
+  // skipping problematic segments while still drawing valid ones.
   
   // Create stretch resolver (use expanded shapes to include mirror copies)
   const resolveStretch = createStretchResolver(expandedShapes, globalStretch)
   
   // Build the path: for each circle, draw arc then connector to next circle
   let totalLength = 0
+  
+  // Track if we need to start a new sub-path (after skipping invalid segments)
+  let needsMoveTo = true
   
   // For open paths, we iterate through all circles but handle first/last specially
   // useStartPoint/useEndPoint control whether arcs are drawn on first/last circles
@@ -205,10 +215,18 @@ export function computeTangentHull(
     const isFirst = i === 0
     const isLast = i === n - 1
     
+    // Get the tangent from this circle to the next
+    const currTangent = tangents[i]
+    
     // Skip first circle entirely if path is open and useStartPoint is false
     if (!closed && isFirst && !useStartPoint) {
-      // For open path without start point: just add connector to next
-      const currTangent = tangents[i]!
+      // For open path without start point: just add connector to next (if tangent is valid)
+      if (currTangent === null) {
+        // Can't connect - skip this segment entirely
+        needsMoveTo = true
+        continue
+      }
+      
       const nextCircle = orderedCircles[i + 1]
       const exitAngle = currTangent.angle1
       const exitOffsetAmount = circle.exitOffset ?? 0
@@ -238,13 +256,15 @@ export function computeTangentHull(
           exitPoint, adjustedExitAngle, clockwise, exitTangentLengthMult,
           nextEntryPoint, nextEntryAngle, nextClockwise, nextEntryTangentLengthMult
         )
+        connectorSeg.needsMoveTo = needsMoveTo
         segments.push(connectorSeg)
         totalLength += connectorSeg.length
       } else {
         const lineLen = distance(exitPoint, nextEntryPoint)
-        segments.push({ type: 'line', start: exitPoint, end: nextEntryPoint, length: lineLen })
+        segments.push({ type: 'line', start: exitPoint, end: nextEntryPoint, length: lineLen, needsMoveTo })
         totalLength += lineLen
       }
+      needsMoveTo = false
       continue
     }
     
@@ -258,23 +278,56 @@ export function computeTangentHull(
     
     // Tangent from previous circle TO this circle
     const prevTangentIndex = (i - 1 + n) % n
-    const prevTangent = tangents[prevTangentIndex]!
-    // Tangent from this circle TO next circle
-    const currTangent = tangents[i]!
+    const prevTangent = tangents[prevTangentIndex]
     
-    // Base entry/exit angles from tangent computation
-    let entryAngle = prevTangent.angle2
-    let exitAngle = currTangent.angle1
+    // Check if we can draw this circle's arc
+    // For the arc, we need entry angle (from prevTangent) and exit angle (from currTangent)
+    // Handle cases where one or both tangents are null
     
-    // For open paths with useStartPoint/useEndPoint enabled, use opposite side of the circle
-    // instead of calculating from the wrap-around tangent (which doesn't exist logically)
-    if (!closed && isFirst && useStartPoint) {
-      // First circle in open path: set entry angle opposite to exit angle
-      entryAngle = exitAngle + Math.PI
+    const hasPrevTangent = prevTangent !== null || (!closed && isFirst && useStartPoint)
+    const hasCurrTangent = currTangent !== null || (!closed && isLast && useEndPoint)
+    
+    // If we can't determine both entry and exit angles, skip this circle's arc
+    if (!hasPrevTangent && !hasCurrTangent) {
+      // Can't draw anything for this circle
+      needsMoveTo = true
+      continue
     }
-    if (!closed && isLast && useEndPoint) {
+    
+    // Determine entry angle
+    // For open paths with useStartPoint on first circle: entry is 180° opposite exit
+    // This must be checked BEFORE prevTangent to avoid using the wrap-around tangent
+    let entryAngle: number
+    if (!closed && isFirst && useStartPoint && currTangent !== null) {
+      // First circle in open path: set entry angle opposite to exit angle
+      entryAngle = currTangent.angle1 + Math.PI
+    } else if (prevTangent !== null) {
+      entryAngle = prevTangent.angle2
+    } else if (currTangent !== null) {
+      // No prev tangent but we have curr tangent - use opposite of exit
+      entryAngle = currTangent.angle1 + Math.PI
+    } else {
+      // Can't determine entry angle
+      needsMoveTo = true
+      continue
+    }
+    
+    // Determine exit angle
+    // For open paths with useEndPoint on last circle: exit is 180° opposite entry
+    // This must be checked BEFORE currTangent to avoid using the wrap-around tangent
+    let exitAngle: number
+    if (!closed && isLast && useEndPoint && prevTangent !== null) {
       // Last circle in open path: set exit angle opposite to entry angle
+      exitAngle = prevTangent.angle2 + Math.PI
+    } else if (currTangent !== null) {
+      exitAngle = currTangent.angle1
+    } else if (prevTangent !== null) {
+      // No curr tangent but we have prev tangent - use opposite of entry
       exitAngle = entryAngle + Math.PI
+    } else {
+      // Can't determine exit angle
+      needsMoveTo = true
+      continue
     }
     
     // Apply separate entry/exit offsets to this circle's contact points
@@ -308,8 +361,9 @@ export function computeTangentHull(
         radius: circle.radius,
         startAngle: entryAngle,
         endAngle: exitAngle,
-        counterclockwise: clockwise,  // 'cw' direction → counterclockwise canvas param (see notes)
-        length: arcLen
+        counterclockwise: !clockwise,  // Flipped: CW circle uses decreasing angles, CCW uses increasing
+        length: arcLen,
+        needsMoveTo
       }
       segments.push(arcSeg)
       totalLength += arcLen
@@ -325,14 +379,24 @@ export function computeTangentHull(
         clockwise,
         stretch
       )
+      ellipseSeg.needsMoveTo = needsMoveTo
       segments.push(ellipseSeg)
       totalLength += ellipseSeg.length
     }
+    
+    needsMoveTo = false
     
     // === Connector segment from this circle to next circle ===
     // Skip if this is the last circle in an open path (no connector to first circle)
     // The path ends at this circle's exit point
     if (!closed && isLast) continue
+    
+    // Skip connector if the tangent to the next circle is invalid
+    if (currTangent === null) {
+      // Can't connect to next circle - the next circle will start a new sub-path
+      needsMoveTo = true
+      continue
+    }
     
     // Calculate the entry point on the NEXT circle (potentially with its own offset)
     const nextClockwise = (nextCircle.direction ?? 'cw') === 'cw'
@@ -421,13 +485,16 @@ function createStretchedArc(
   const chordAngle = Math.atan2(exitPoint.y - entryPoint.y, exitPoint.x - entryPoint.x)
   
   // Calculate arc midpoint angle (halfway between entry and exit, accounting for direction)
+  // Arc direction is flipped: CW circle uses decreasing angles, CCW uses increasing
   let arcSpan = exitAngle - entryAngle
   if (clockwise) {
-    while (arcSpan < 0) arcSpan += Math.PI * 2
-    while (arcSpan > Math.PI * 2) arcSpan -= Math.PI * 2
-  } else {
+    // CW circle: decreasing angles (counterclockwise=false), negative span
     while (arcSpan > 0) arcSpan -= Math.PI * 2
     while (arcSpan < -Math.PI * 2) arcSpan += Math.PI * 2
+  } else {
+    // CCW circle: increasing angles (counterclockwise=true), positive span
+    while (arcSpan < 0) arcSpan += Math.PI * 2
+    while (arcSpan > Math.PI * 2) arcSpan -= Math.PI * 2
   }
   const midAngle = entryAngle + arcSpan / 2
   
@@ -541,8 +608,8 @@ function createTangentConnector(
   endClockwise: boolean,
   endTangentLengthMult: number
 ): BezierSegment {
-  const startTangentOffset = startClockwise ? -Math.PI / 2 : Math.PI / 2
-  const endTangentOffset = endClockwise ? -Math.PI / 2 : Math.PI / 2
+  const startTangentOffset = startClockwise ? Math.PI / 2 : -Math.PI / 2
+  const endTangentOffset = endClockwise ? Math.PI / 2 : -Math.PI / 2
   
   const startTangentAngle = startAngle + startTangentOffset
   const endTangentAngle = endAngle + endTangentOffset
@@ -578,6 +645,7 @@ function createTangentConnector(
 
 /**
  * Calculate arc length going from startAngle to endAngle in the specified direction
+ * Arc direction is flipped: CW circle uses decreasing angles, CCW uses increasing
  */
 function calculateArcLength(
   radius: number,
@@ -588,39 +656,16 @@ function calculateArcLength(
   let delta = endAngle - startAngle
   
   if (clockwise) {
-    while (delta < 0) delta += Math.PI * 2
-    while (delta > Math.PI * 2) delta -= Math.PI * 2
-  } else {
+    // CW circle: decreasing angles, negative delta
     while (delta > 0) delta -= Math.PI * 2
     while (delta < -Math.PI * 2) delta += Math.PI * 2
+  } else {
+    // CCW circle: increasing angles, positive delta
+    while (delta < 0) delta += Math.PI * 2
+    while (delta > Math.PI * 2) delta -= Math.PI * 2
   }
   
   return radius * Math.abs(delta)
-}
-
-/**
- * Compute a partial path when some tangents are invalid
- */
-function computePartialPath(
-  tangents: (TangentResult | null)[]
-): PathData {
-  const segments: (LineSegment | ArcSegment)[] = []
-  let totalLength = 0
-  
-  for (const tangent of tangents) {
-    if (tangent) {
-      const lineLen = distance(tangent.p1, tangent.p2)
-      segments.push({
-        type: 'line',
-        start: tangent.p1,
-        end: tangent.p2,
-        length: lineLen
-      })
-      totalLength += lineLen
-    }
-  }
-  
-  return { segments, totalLength }
 }
 
 /**
@@ -729,8 +774,11 @@ export function findPathSegmentAt(
   // Expand shapes to include mirrored circles
   const { expandedShapes, expandedOrder } = expandMirroredCircles(shapes, order)
   
+  // Build lookup map for O(1) access
+  const shapeMap = new Map(expandedShapes.map(s => [s.id, s]))
+  
   const circles = expandedOrder
-    .map(id => expandedShapes.find(s => s.id === id))
+    .map(id => shapeMap.get(id))
     .filter((s): s is CircleShape => s !== undefined && s.type === 'circle')
   
   if (circles.length < 2) return null

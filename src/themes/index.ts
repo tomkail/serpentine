@@ -12,6 +12,11 @@ import {
   buildTheme, 
   darkSemanticTokens, 
   lightSemanticTokens,
+  sunsetSemanticTokens,
+  forestSemanticTokens,
+  lavenderSemanticTokens,
+  oceanSemanticTokens,
+  amberSemanticTokens,
   primitives 
 } from './tokens'
 
@@ -36,12 +41,75 @@ export const paperTheme: CanvasTheme = buildTheme(
 )
 
 /**
+ * Sunset theme - Warm coral accent on dark warm gray
+ */
+export const sunsetTheme: CanvasTheme = buildTheme(
+  'Sunset',
+  sunsetSemanticTokens,
+  true
+)
+
+/**
+ * Forest theme - Emerald green accent on cool dark
+ */
+export const forestTheme: CanvasTheme = buildTheme(
+  'Forest',
+  forestSemanticTokens,
+  true
+)
+
+/**
+ * Lavender theme - Purple/violet accent on slate
+ */
+export const lavenderTheme: CanvasTheme = buildTheme(
+  'Lavender',
+  lavenderSemanticTokens,
+  true
+)
+
+/**
+ * Ocean theme - Teal/cyan accent on cool dark
+ */
+export const oceanTheme: CanvasTheme = buildTheme(
+  'Ocean',
+  oceanSemanticTokens,
+  true
+)
+
+/**
+ * Amber theme - Golden warm accent on warm gray
+ */
+export const amberTheme: CanvasTheme = buildTheme(
+  'Amber',
+  amberSemanticTokens,
+  true
+)
+
+/**
  * All available themes
  */
 export const themes: Record<string, CanvasTheme> = {
   midnight: midnightTheme,
   paper: paperTheme,
+  sunset: sunsetTheme,
+  forest: forestTheme,
+  lavender: lavenderTheme,
+  ocean: oceanTheme,
+  amber: amberTheme,
 }
+
+/**
+ * Theme metadata for UI display
+ */
+export const themeList = [
+  { id: 'midnight', name: 'Midnight', icon: '🌙' },
+  { id: 'paper', name: 'Paper', icon: '📄' },
+  { id: 'sunset', name: 'Sunset', icon: '🌅' },
+  { id: 'forest', name: 'Forest', icon: '🌲' },
+  { id: 'lavender', name: 'Lavender', icon: '💜' },
+  { id: 'ocean', name: 'Ocean', icon: '🌊' },
+  { id: 'amber', name: 'Amber', icon: '🔶' },
+] as const
 
 /**
  * Default theme

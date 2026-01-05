@@ -17,6 +17,8 @@ export interface CanvasTheme {
   strokeHover: string      // Hovered shape outlines
   fill: string             // Shape fills
   chrome: string           // Guides, connections, UI lines
+  pathStroke: string       // Main path/serpentine line color
+  gridColor: string        // Grid dots and mirror axis line
   
   // Danger state (for delete)
   danger: string
@@ -40,25 +42,4 @@ export interface CanvasTheme {
   }
 }
 
-/**
- * Hover target types for interaction tracking
- */
-export type HoverTarget = 
-  | { type: 'shape-body'; shapeId: string }
-  | { type: 'shape-edge'; shapeId: string }
-  | { type: 'direction-ring'; shapeId: string }
-  | { type: 'delete-icon'; shapeId: string }
-  | { type: 'mirror-icon'; shapeId: string }
-  | { type: 'order-prev'; shapeId: string }
-  | { type: 'order-next'; shapeId: string }
-  | { type: 'index-dot'; shapeId: string; dotIndex: number }
-  | { type: 'entry-offset'; shapeId: string }
-  | { type: 'exit-offset'; shapeId: string }
-  | { type: 'entry-length'; shapeId: string }
-  | { type: 'exit-length'; shapeId: string }
-  | { type: 'entry-offset-slot'; shapeId: string }
-  | { type: 'exit-offset-slot'; shapeId: string }
-  | { type: 'entry-length-slot'; shapeId: string }
-  | { type: 'exit-length-slot'; shapeId: string }
-  | null
 
