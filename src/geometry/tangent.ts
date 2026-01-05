@@ -129,23 +129,25 @@ export function internalTangent(
 }
 
 /**
- * Get the appropriate tangent between two circles based on their wrap directions.
+ * Get the appropriate tangent between two circles based on their path directions.
  * 
- * @param fromWrap - wrap direction of the first circle ('left' = CCW, 'right' = CW)
- * @param toWrap - wrap direction of the second circle
+ * @param fromDir - direction path travels around first circle ('cw' or 'ccw')
+ * @param toDir - direction path travels around second circle
  */
-export function getTangentForWrapSides(
-  c1: Point, r1: number, fromWrap: 'left' | 'right',
-  c2: Point, r2: number, toWrap: 'left' | 'right'
+export function getTangentForDirections(
+  c1: Point, r1: number, fromDir: 'cw' | 'ccw',
+  c2: Point, r2: number, toDir: 'cw' | 'ccw'
 ): TangentResult | null {
-  const sameDirection = fromWrap === toWrap
+  const sameDirection = fromDir === toDir
+  
+  // Map direction to tangent side: 'cw' → 'right', 'ccw' → 'left'
+  const side = fromDir === 'cw' ? 'right' : 'left'
   
   if (sameDirection) {
     // Same direction: use external tangent
-    // The side matches the wrap direction
-    return externalTangent(c1, r1, c2, r2, fromWrap)
+    return externalTangent(c1, r1, c2, r2, side)
   } else {
     // Opposite directions: use internal (crossing) tangent
-    return internalTangent(c1, r1, c2, r2, fromWrap)
+    return internalTangent(c1, r1, c2, r2, side)
   }
 }

@@ -110,7 +110,7 @@ export function useCanvasInteraction(
   const removeShape = useDocumentStore(state => state.removeShape)
   const reorderShapes = useDocumentStore(state => state.reorderShapes)
   const insertShapeAt = useDocumentStore(state => state.insertShapeAt)
-  const toggleWrapSide = useDocumentStore(state => state.toggleWrapSide)
+  const toggleDirection = useDocumentStore(state => state.toggleDirection)
   const toggleMirror = useDocumentStore(state => state.toggleMirror)
   const setEntryOffset = useDocumentStore(state => state.setEntryOffset)
   const setExitOffset = useDocumentStore(state => state.setExitOffset)
@@ -510,9 +510,9 @@ export function useCanvasInteraction(
           return
         }
         
-        // Click on direction ring: toggle wrap side
+        // Click on direction ring: toggle direction
         if (hoverTarget?.type === 'direction-ring') {
-          toggleWrapSide(shape.id)
+          toggleDirection(shape.id)
           return
         }
         
@@ -600,7 +600,7 @@ export function useCanvasInteraction(
         }
       }
     }
-  }, [canvasRef, getWorldPos, isPanning, pan, setPan, findTargetAt, select, clearSelection, setDragState, toggleWrapSide, toggleMirror, removeShape, shapes, shapeOrder])
+  }, [canvasRef, getWorldPos, isPanning, pan, setPan, findTargetAt, select, clearSelection, setDragState, toggleDirection, toggleMirror, removeShape, shapes, shapeOrder])
   
   // Mouse move handler
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -640,7 +640,7 @@ export function useCanvasInteraction(
         updateShape(dragState.shapeId, { radius: newRadius })
       } else if (dragState.mode === 'tangent-entry-offset' || dragState.mode === 'tangent-exit-offset') {
         const angleToMouse = angle(shape.center, worldPos)
-        const clockwise = (shape.wrapSide ?? 'right') === 'right'
+        const clockwise = (shape.direction ?? 'cw') === 'cw'
         const offsetDir = clockwise ? 1 : -1
         
         const baseAngle = dragState.startAngle ?? 0

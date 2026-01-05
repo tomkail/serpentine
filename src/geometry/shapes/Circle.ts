@@ -62,7 +62,7 @@ export function createCircle(
   radius: number = DEFAULT_CIRCLE_RADIUS,
   id?: string,
   name?: string,
-  wrapSide: 'left' | 'right' = 'right'
+  direction: 'cw' | 'ccw' = 'cw'
 ): CircleShape {
   const circleId = id ?? crypto.randomUUID()
   return {
@@ -71,7 +71,7 @@ export function createCircle(
     name: name ?? `Circle`,
     center,
     radius,
-    wrapSide
+    direction
   }
 }
 
@@ -111,12 +111,12 @@ export function duplicateCircle(circle: CircleShape, offset: Point = DUPLICATE_O
 }
 
 /**
- * Toggle the wrap side of a circle
+ * Toggle the direction of a circle
  */
-export function toggleWrapSide(circle: CircleShape): CircleShape {
+export function toggleDirection(circle: CircleShape): CircleShape {
   return {
     ...circle,
-    wrapSide: circle.wrapSide === 'right' ? 'left' : 'right'
+    direction: circle.direction === 'cw' ? 'ccw' : 'cw'
   }
 }
 

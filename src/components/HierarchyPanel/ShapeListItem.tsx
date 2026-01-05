@@ -20,7 +20,7 @@ export function ShapeListItem({ shape }: ShapeListItemProps) {
   const shapes = useDocumentStore(state => state.shapes)
   const removeShape = useDocumentStore(state => state.removeShape)
   const renameShape = useDocumentStore(state => state.renameShape)
-  const toggleWrapSide = useDocumentStore(state => state.toggleWrapSide)
+  const toggleDirection = useDocumentStore(state => state.toggleDirection)
   const toggleMirror = useDocumentStore(state => state.toggleMirror)
   const setEntryOffset = useDocumentStore(state => state.setEntryOffset)
   const setExitOffset = useDocumentStore(state => state.setExitOffset)
@@ -83,9 +83,9 @@ export function ShapeListItem({ shape }: ShapeListItemProps) {
     removeShape(shape.id)
   }
   
-  const handleToggleSide = (e: React.MouseEvent) => {
+  const handleToggleDirection = (e: React.MouseEvent) => {
     e.stopPropagation()
-    toggleWrapSide(shape.id)
+    toggleDirection(shape.id)
   }
   
   const handleToggleMirror = (e: React.MouseEvent) => {
@@ -97,7 +97,7 @@ export function ShapeListItem({ shape }: ShapeListItemProps) {
     ? `r: ${shape.radius % 1 === 0 ? shape.radius : shape.radius.toFixed(1)}`
     : ''
   
-  const wrapSide = shape.type === 'circle' ? shape.wrapSide : 'right'
+  const direction = shape.type === 'circle' ? shape.direction : 'cw'
   
   // Get circle for tangent controls
   const circle = shape.type === 'circle' ? shape as CircleShape : null
@@ -207,10 +207,10 @@ export function ShapeListItem({ shape }: ShapeListItemProps) {
         <div className={styles.buttonGroup}>
           <button 
             className={styles.actionButton}
-            onClick={handleToggleSide}
+            onClick={handleToggleDirection}
             title={`Path direction (click to toggle)`}
           >
-            {wrapSide === 'right' ? '↺' : '↻'}
+            {direction === 'cw' ? '↺' : '↻'}
           </button>
           
           <button 

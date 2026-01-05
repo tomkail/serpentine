@@ -57,7 +57,7 @@ export function renderPath(
       }
       
       // Draw the arc
-      ctx.arc(arc.center.x, arc.center.y, arc.radius, arc.startAngle, arc.endAngle, arc.clockwise)
+      ctx.arc(arc.center.x, arc.center.y, arc.radius, arc.startAngle, arc.endAngle, arc.counterclockwise)
       
     } else if (seg.type === 'line') {
       const line = seg as LineSegment
@@ -231,8 +231,8 @@ function renderDebugInfo(
       ctx.stroke()
       
       // Direction indicator
-      ctx.fillStyle = arc.clockwise ? '#00ffff' : '#ff00ff'
-      ctx.fillText(arc.clockwise ? 'CW' : 'CCW', arc.center.x - 10 * uiScale, arc.center.y)
+      ctx.fillStyle = arc.counterclockwise ? '#ff00ff' : '#00ffff'
+      ctx.fillText(arc.counterclockwise ? 'CCW' : 'CW', arc.center.x - 10 * uiScale, arc.center.y)
     }
   }
   

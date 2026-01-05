@@ -4,7 +4,7 @@ import { useSelectionStore } from '../stores/selectionStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useNotificationStore } from '../stores/notificationStore'
 import { useHistoryStore, undo, redo } from '../stores/historyStore'
-import { createNewDocument, saveDocument, loadDocument } from '../utils/fileIO'
+import { createNewDocument, saveDocument, loadDocument, exportSvg } from '../utils/fileIO'
 import { fitToView, resetView } from '../utils/viewportActions'
 
 export function useKeyboardShortcuts() {
@@ -57,6 +57,12 @@ export function useKeyboardShortcuts() {
       if (isMod && e.key === 'o') {
         e.preventDefault()
         loadDocument()
+        return
+      }
+      
+      if (isMod && e.key === 'e') {
+        e.preventDefault()
+        exportSvg()
         return
       }
       

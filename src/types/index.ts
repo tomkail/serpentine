@@ -12,7 +12,7 @@ export interface Rect {
 }
 
 // Shape types
-export type WrapSide = 'left' | 'right'
+export type Direction = 'cw' | 'ccw'  // Clockwise or counter-clockwise
 
 export interface CircleShape {
   id: string
@@ -20,7 +20,7 @@ export interface CircleShape {
   name: string
   center: Point
   radius: number
-  wrapSide: WrapSide  // Which side the path wraps around this circle
+  direction: Direction  // Direction the path travels around this circle
   // Stretch: deforms the circular arc into an elliptical arc
   // 0 = circular arc (no stretch)
   // Positive = MORE elongated perpendicular to chord (more bulge)
@@ -69,7 +69,7 @@ export interface ArcSegment {
   radius: number
   startAngle: number
   endAngle: number
-  clockwise: boolean
+  counterclockwise: boolean  // Passed directly to canvas arc() counterclockwise param
   length: number
 }
 

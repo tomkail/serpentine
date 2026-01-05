@@ -1,5 +1,5 @@
 import type { Shape, CircleShape, Point, CanvasTheme, HoverTarget } from '../../../types'
-import { getTangentForWrapSides } from '../../../geometry/tangent'
+import { getTangentForDirections } from '../../../geometry/tangent'
 import { pointOnCircle, distance } from '../../../geometry/math'
 import { getMirroredCircles, createMirroredCircle, expandMirroredCircles } from '../../../geometry/path'
 import { drawMirrorIconCanvas, drawDeleteIconCanvas } from '../../icons/Icons'
@@ -311,8 +311,8 @@ function drawDirectionRing(
   isGhost: boolean = false,
   isSelected: boolean = false
 ) {
-  const { center, radius, wrapSide } = circle
-  const pathGoesClockwise = (wrapSide ?? 'right') !== 'right'
+  const { center, radius, direction } = circle
+  const pathGoesClockwise = (direction ?? 'cw') === 'cw'
   
   const uiScale = 1 / zoom
   const ringRadius = radius * DIRECTION_RING_RADIUS
@@ -805,16 +805,16 @@ export function computeTangentHandleInfo(
   
   if (!prevCircle || !nextCircle) return null
   
-  const clockwise = (circle.wrapSide ?? 'right') === 'right'
+  const clockwise = (circle.direction ?? 'cw') === 'cw'
   
-  const entryTangent = getTangentForWrapSides(
-    prevCircle.center, prevCircle.radius, prevCircle.wrapSide ?? 'right',
-    circle.center, circle.radius, circle.wrapSide ?? 'right'
+  const entryTangent = getTangentForDirections(
+    prevCircle.center, prevCircle.radius, prevCircle.direction ?? 'cw',
+    circle.center, circle.radius, circle.direction ?? 'cw'
   )
   
-  const exitTangent = getTangentForWrapSides(
-    circle.center, circle.radius, circle.wrapSide ?? 'right',
-    nextCircle.center, nextCircle.radius, nextCircle.wrapSide ?? 'right'
+  const exitTangent = getTangentForDirections(
+    circle.center, circle.radius, circle.direction ?? 'cw',
+    nextCircle.center, nextCircle.radius, nextCircle.direction ?? 'cw'
   )
   
   if (!entryTangent || !exitTangent) return null

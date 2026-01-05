@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Menu } from './Menu'
 import { MenuItem } from './MenuItem'
-import { createNewDocument, saveDocument, loadDocument } from '../../utils/fileIO'
+import { createNewDocument, saveDocument, loadDocument, exportSvg } from '../../utils/fileIO'
 import { fitToView, resetView } from '../../utils/viewportActions'
 import { useDocumentStore } from '../../stores/documentStore'
 import { useSettingsStore } from '../../stores/settingsStore'
@@ -56,6 +56,11 @@ export function MenuBar() {
   
   const handleLoad = () => {
     loadDocument()
+    closeMenu()
+  }
+  
+  const handleExportSvg = () => {
+    exportSvg()
     closeMenu()
   }
   
@@ -148,6 +153,8 @@ export function MenuBar() {
           <MenuItem label="New" shortcut="⌘N" onClick={handleNew} />
           <MenuItem label="Open..." shortcut="⌘O" onClick={handleLoad} />
           <MenuItem label="Save" shortcut="⌘S" onClick={handleSave} />
+          <div style={{ height: 1, background: 'var(--menu-border)', margin: '4px 0' }} />
+          <MenuItem label="Export SVG..." shortcut="⌘E" onClick={handleExportSvg} />
           <div style={{ height: 1, background: 'var(--menu-border)', margin: '4px 0' }} />
           <div style={{ padding: '4px 12px', color: 'var(--text-muted)', fontSize: '11px' }}>
             Test Presets

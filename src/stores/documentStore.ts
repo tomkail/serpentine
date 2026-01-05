@@ -34,7 +34,7 @@ interface DocumentState {
   
   renameShape: (id: string, name: string) => void
   duplicateShape: (id: string) => void
-  toggleWrapSide: (id: string) => void
+  toggleDirection: (id: string) => void
   toggleMirror: (id: string) => void
   toggleClosedPath: () => void
   setClosedPath: (closed: boolean) => void
@@ -55,7 +55,7 @@ const createDefaultDocument = (): Pick<DocumentState, 'shapes' | 'shapeOrder' | 
     name: 'Circle 1',
     center: { x: 0, y: -80 },
     radius: 120,
-    wrapSide: 'left'
+    direction: 'ccw'
   }
   const c2: CircleShape = {
     id: crypto.randomUUID(),
@@ -63,7 +63,7 @@ const createDefaultDocument = (): Pick<DocumentState, 'shapes' | 'shapeOrder' | 
     name: 'Circle 2',
     center: { x: 210, y: -140 },
     radius: 60,
-    wrapSide: 'right',
+    direction: 'cw',
     entryOffset: -Math.PI / 2
   }
   const c3: CircleShape = {
@@ -72,7 +72,7 @@ const createDefaultDocument = (): Pick<DocumentState, 'shapes' | 'shapeOrder' | 
     name: 'Circle 3',
     center: { x: 180, y: 110 },
     radius: 140,
-    wrapSide: 'right'
+    direction: 'cw'
   }
   const c4: CircleShape = {
     id: crypto.randomUUID(),
@@ -80,7 +80,7 @@ const createDefaultDocument = (): Pick<DocumentState, 'shapes' | 'shapeOrder' | 
     name: 'Circle 4',
     center: { x: 0, y: 130 },
     radius: 120,
-    wrapSide: 'right',
+    direction: 'cw',
     entryOffset: -Math.PI / 2
   }
   
@@ -226,12 +226,12 @@ export const useDocumentStore = create<DocumentState>()(
         })
       },
       
-      toggleWrapSide: (id) => set((state) => ({
+      toggleDirection: (id) => set((state) => ({
         shapes: state.shapes.map(shape => {
           if (shape.id === id && shape.type === 'circle') {
             return {
               ...shape,
-              wrapSide: shape.wrapSide === 'right' ? 'left' : 'right'
+              direction: shape.direction === 'cw' ? 'ccw' : 'cw'
             }
           }
           return shape
@@ -271,16 +271,19 @@ export const useDocumentStore = create<DocumentState>()(
       reset: () => set(createDefaultDocument()),
       
       loadDocument: (data) => set({
-        // Ensure backwards compatibility - add default wrapSide if missing
+        // Ensure backwards compatibility and migrate old formats
         // Stretch is left as undefined if not specified (inherits from global)
         shapes: data.shapes.map(shape => {
           // Cast to unknown first for backwards compatibility with old file formats
           const legacyShape = shape as unknown as Record<string, unknown>
           const legacyStretch = legacyShape.fling as number | undefined
           const legacyTension = legacyShape.tension as number | undefined
+          // Migrate wrapSide → direction: 'right' → 'cw', 'left' → 'ccw'
+          const legacyWrapSide = legacyShape.wrapSide as 'left' | 'right' | undefined
+          const direction = shape.direction ?? (legacyWrapSide === 'left' ? 'ccw' : 'cw')
           return {
             ...shape,
-            wrapSide: shape.wrapSide ?? 'right',
+            direction,
             // Migrate: fling (0-1) maps to stretch (0-1), tension (0-1) maps to stretch (1-0)
             stretch: shape.stretch ?? legacyStretch ?? (legacyTension !== undefined ? 1 - legacyTension : undefined)
           } as CircleShape
@@ -326,13 +329,16 @@ export const useDocumentStore = create<DocumentState>()(
           // Default start/end point settings to true for backwards compatibility
           useStartPoint: persisted.useStartPoint ?? true,
           useEndPoint: persisted.useEndPoint ?? true,
-          // Ensure all shapes have wrapSide property and migrate to stretch
-          shapes: (persisted.shapes ?? currentState.shapes).map(shape => ({
-            ...shape,
-            wrapSide: shape.wrapSide ?? 'right',
-            // Migrate: fling → stretch, tension (inverted) → stretch
-            stretch: (shape as any).stretch ?? (shape as any).fling ?? ((shape as any).tension !== undefined ? 1 - (shape as any).tension : undefined)
-          }))
+          // Migrate shapes: wrapSide → direction, fling/tension → stretch
+          shapes: (persisted.shapes ?? currentState.shapes).map(shape => {
+            const legacyWrapSide = (shape as any).wrapSide as 'left' | 'right' | undefined
+            return {
+              ...shape,
+              direction: shape.direction ?? (legacyWrapSide === 'left' ? 'ccw' : 'cw'),
+              // Migrate: fling → stretch, tension (inverted) → stretch
+              stretch: (shape as any).stretch ?? (shape as any).fling ?? ((shape as any).tension !== undefined ? 1 - (shape as any).tension : undefined)
+            }
+          })
         }
       }
     }

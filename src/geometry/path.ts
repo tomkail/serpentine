@@ -1,6 +1,6 @@
 import type { CircleShape, PathData, LineSegment, BezierSegment, ArcSegment, EllipseArcSegment, Point } from '../types'
 import { distance, pointOnCircle } from './math'
-import { getTangentForWrapSides, type TangentResult } from './tangent'
+import { getTangentForDirections, type TangentResult } from './tangent'
 import {
   NON_OVERLAP_MIN_RADIUS,
   NON_OVERLAP_MAX_RADIUS,
@@ -13,7 +13,7 @@ import {
  * Create a mirrored version of a circle across the vertical axis (x=0)
  * The mirrored circle has:
  * - x position negated
- * - wrapSide flipped (left ↔ right)
+ * - direction preserved (path continues same rotational direction)
  * - entry/exit offsets swapped and negated (to maintain symmetry)
  */
 export function createMirroredCircle(circle: CircleShape): CircleShape {
@@ -25,8 +25,8 @@ export function createMirroredCircle(circle: CircleShape): CircleShape {
       x: -circle.center.x,
       y: circle.center.y
     },
-    // Keep the same wrap side (don't flip direction)
-    wrapSide: circle.wrapSide,
+    // Keep the same direction (don't flip)
+    direction: circle.direction,
     // Swap and preserve entry/exit offsets for symmetry
     entryOffset: circle.exitOffset !== undefined ? -circle.exitOffset : undefined,
     exitOffset: circle.entryOffset !== undefined ? -circle.entryOffset : undefined,
@@ -121,9 +121,9 @@ export function createStretchResolver(
 /**
  * Compute the tangent hull path around an ordered list of circles.
  * 
- * Each circle has a wrapSide property:
- * - 'right' = clockwise (CW) - path goes clockwise around this circle
- * - 'left' = counter-clockwise (CCW) - path goes counter-clockwise around this circle
+ * Each circle has a direction property:
+ * - 'cw' = clockwise - path goes clockwise around this circle
+ * - 'ccw' = counter-clockwise - path goes counter-clockwise around this circle
  * 
  * Stretch deforms the circular arc into an elliptical arc:
  * - 0 = circular arc
@@ -168,9 +168,9 @@ export function computeTangentHull(
     const curr = orderedCircles[i]
     const next = orderedCircles[(i + 1) % n]
     
-    const tangent = getTangentForWrapSides(
-      curr.center, curr.radius, curr.wrapSide ?? 'right',
-      next.center, next.radius, next.wrapSide ?? 'right'
+    const tangent = getTangentForDirections(
+      curr.center, curr.radius, curr.direction ?? 'cw',
+      next.center, next.radius, next.direction ?? 'cw'
     )
     
     tangents.push(tangent)
@@ -194,7 +194,7 @@ export function computeTangentHull(
   
   for (let i = 0; i < circleCount; i++) {
     const circle = orderedCircles[i]
-    const clockwise = (circle.wrapSide ?? 'right') === 'right'
+    const clockwise = (circle.direction ?? 'cw') === 'cw'
     
     // Get stretch for this circle
     const stretch = resolveStretch(circle.id)
@@ -220,7 +220,7 @@ export function computeTangentHull(
       const exitTangentLengthMult = circle.exitTangentLength ?? DEFAULT_TANGENT_LENGTH
       
       // Calculate entry point on next circle
-      const nextClockwise = (nextCircle.wrapSide ?? 'right') === 'right'
+      const nextClockwise = (nextCircle.direction ?? 'cw') === 'cw'
       let nextEntryAngle = currTangent.angle2
       const nextEntryOffset = nextCircle.entryOffset ?? 0
       if (nextEntryOffset !== 0) {
@@ -308,7 +308,7 @@ export function computeTangentHull(
         radius: circle.radius,
         startAngle: entryAngle,
         endAngle: exitAngle,
-        clockwise,
+        counterclockwise: clockwise,  // 'cw' direction → counterclockwise canvas param (see notes)
         length: arcLen
       }
       segments.push(arcSeg)
@@ -335,7 +335,7 @@ export function computeTangentHull(
     if (!closed && isLast) continue
     
     // Calculate the entry point on the NEXT circle (potentially with its own offset)
-    const nextClockwise = (nextCircle.wrapSide ?? 'right') === 'right'
+    const nextClockwise = (nextCircle.direction ?? 'cw') === 'cw'
     let nextEntryAngle = currTangent.angle2
     const nextEntryOffset = nextCircle.entryOffset ?? 0
     if (nextEntryOffset !== 0) {
