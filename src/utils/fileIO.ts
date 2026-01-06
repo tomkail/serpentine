@@ -480,7 +480,8 @@ export function exportSvg(): void {
       docState.globalStretch,
       docState.closedPath,
       docState.useStartPoint,
-      docState.useEndPoint
+      docState.useEndPoint,
+      docState.mirrorAxis
     )
     
     if (pathData.segments.length === 0) {

@@ -1,4 +1,4 @@
-import type { CircleShape, PathData, LineSegment, BezierSegment, ArcSegment, EllipseArcSegment, Point } from '../types'
+import type { CircleShape, PathData, LineSegment, BezierSegment, ArcSegment, EllipseArcSegment, Point, MirrorAxis } from '../types'
 import { distance, pointOnCircle } from './math'
 import { getTangentForDirections, type TangentResult } from './tangent'
 import {
@@ -10,21 +10,24 @@ import {
 } from '../constants'
 
 /**
- * Create a mirrored version of a circle across the vertical axis (x=0)
+ * Create a mirrored version of a circle across the specified axis
+ * - 'vertical' axis (x=0): negates x position
+ * - 'horizontal' axis (y=0): negates y position
  * The mirrored circle has:
- * - x position negated
+ * - position component negated along the axis
  * - direction preserved (path continues same rotational direction)
  * - entry/exit offsets swapped and negated (to maintain symmetry)
  */
-export function createMirroredCircle(circle: CircleShape): CircleShape {
+export function createMirroredCircle(circle: CircleShape, axis: MirrorAxis = 'vertical'): CircleShape {
+  const center = axis === 'vertical'
+    ? { x: -circle.center.x, y: circle.center.y }
+    : { x: circle.center.x, y: -circle.center.y }
+    
   return {
     ...circle,
     id: `${circle.id}_mirror`,
     name: `${circle.name} (Mirror)`,
-    center: {
-      x: -circle.center.x,
-      y: circle.center.y
-    },
+    center,
     // Keep the same direction (don't flip)
     direction: circle.direction,
     // Swap and preserve entry/exit offsets for symmetry
@@ -49,7 +52,8 @@ export function createMirroredCircle(circle: CircleShape): CircleShape {
  */
 export function expandMirroredCircles(
   shapes: CircleShape[],
-  order: string[]
+  order: string[],
+  axis: MirrorAxis = 'vertical'
 ): { expandedShapes: CircleShape[], expandedOrder: string[] } {
   // Build lookup map for O(1) access
   const shapeMap = new Map(shapes.map(s => [s.id, s]))
@@ -67,7 +71,7 @@ export function expandMirroredCircles(
   }
   
   // Create mirrored versions
-  const mirrorCopies = mirroredCircles.map(c => createMirroredCircle(c))
+  const mirrorCopies = mirroredCircles.map(c => createMirroredCircle(c, axis))
   
   // Reverse the mirrored copies so they connect properly
   // A → B → C then C' → B' → A'
@@ -89,10 +93,10 @@ export function expandMirroredCircles(
  * Get mirrored circles for rendering purposes.
  * Returns the virtual mirror circles that should be drawn as ghosts.
  */
-export function getMirroredCircles(shapes: CircleShape[]): CircleShape[] {
+export function getMirroredCircles(shapes: CircleShape[], axis: MirrorAxis = 'vertical'): CircleShape[] {
   return shapes
     .filter(c => c.mirrored)
-    .map(c => createMirroredCircle(c))
+    .map(c => createMirroredCircle(c, axis))
 }
 
 /**
@@ -147,12 +151,13 @@ export function computeTangentHull(
   globalStretch: number = 0,
   closed: boolean = true,
   useStartPoint: boolean = true,
-  useEndPoint: boolean = true
+  useEndPoint: boolean = true,
+  mirrorAxis: MirrorAxis = 'vertical'
 ): PathData {
   const segments: (LineSegment | BezierSegment | ArcSegment | EllipseArcSegment)[] = []
   
   // Expand shapes to include mirrored circles
-  const { expandedShapes, expandedOrder } = expandMirroredCircles(shapes, order)
+  const { expandedShapes, expandedOrder } = expandMirroredCircles(shapes, order, mirrorAxis)
   
   // Build lookup map for O(1) access
   const shapeMap = new Map(expandedShapes.map(s => [s.id, s]))
@@ -774,10 +779,11 @@ export function findPathSegmentAt(
   globalStretch: number = 0,
   closed: boolean = true,
   useStartPoint: boolean = true,
-  useEndPoint: boolean = true
+  useEndPoint: boolean = true,
+  mirrorAxis: MirrorAxis = 'vertical'
 ): PathHitInfo | null {
   // Expand shapes to include mirrored circles
-  const { expandedShapes, expandedOrder } = expandMirroredCircles(shapes, order)
+  const { expandedShapes, expandedOrder } = expandMirroredCircles(shapes, order, mirrorAxis)
   
   // Build lookup map for O(1) access
   const shapeMap = new Map(expandedShapes.map(s => [s.id, s]))
@@ -788,7 +794,7 @@ export function findPathSegmentAt(
   
   if (circles.length < 2) return null
   
-  const pathData = computeTangentHull(shapes, order, globalStretch, closed, useStartPoint, useEndPoint)
+  const pathData = computeTangentHull(shapes, order, globalStretch, closed, useStartPoint, useEndPoint, mirrorAxis)
   if (pathData.segments.length === 0) return null
   
   // Number of original (non-mirrored) circles
@@ -929,10 +935,11 @@ export function findClosestPointOnPath(
   globalStretch: number = 0,
   closed: boolean = true,
   useStartPoint: boolean = true,
-  useEndPoint: boolean = true
+  useEndPoint: boolean = true,
+  mirrorAxis: MirrorAxis = 'vertical'
 ): PathHitInfo | null {
   // Expand shapes to include mirrored circles
-  const { expandedShapes, expandedOrder } = expandMirroredCircles(shapes, order)
+  const { expandedShapes, expandedOrder } = expandMirroredCircles(shapes, order, mirrorAxis)
   
   // Build lookup map for O(1) access
   const shapeMap = new Map(expandedShapes.map(s => [s.id, s]))
@@ -943,7 +950,7 @@ export function findClosestPointOnPath(
   
   if (circles.length < 2) return null
   
-  const pathData = computeTangentHull(shapes, order, globalStretch, closed, useStartPoint, useEndPoint)
+  const pathData = computeTangentHull(shapes, order, globalStretch, closed, useStartPoint, useEndPoint, mirrorAxis)
   if (pathData.segments.length === 0) return null
   
   // Number of original (non-mirrored) circles

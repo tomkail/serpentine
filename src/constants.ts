@@ -31,6 +31,7 @@ export const GRID_DOT_RADIUS_SCREEN = 1.2     // Dot size in screen pixels
 // ============================================================================
 
 export const POSITION_SNAP_INCREMENT = 10
+export const SMART_GUIDE_SNAP_THRESHOLD = 8  // Screen pixels for smart guide alignment
 export const RADIUS_SNAP_INCREMENT = 10
 export const OFFSET_SNAP_THRESHOLD = 0.05     // Snap offset to 0 when below this
 export const OFFSET_SNAP_INCREMENT = Math.PI / 36  // 5 degrees in radians
@@ -69,7 +70,7 @@ export const DIRECTION_RING_RADIUS = 0.81    // Where the chevrons are drawn
 // INDEX DOT GRID
 // ============================================================================
 
-export const DOT_SIZE = 6                    // Diameter of each dot
+export const DOT_SIZE = 7                    // Diameter of each dot
 export const DOT_SPACING = 10                // Center-to-center spacing
 export const DOT_GRID_Y_OFFSET = 0           // Vertical offset from center (0 = centered)
 export const MAX_DOT_COLS = 4                // Maximum dots per row
@@ -93,7 +94,7 @@ export const DIRECTION_RING_SIZE_MULTIPLIER = 3
 export const CHEVRON_TARGET_SPACING = 12     // Screen pixels between chevrons
 export const CHEVRON_MIN_SCREEN_SIZE = 5     // Minimum chevron size
 export const CHEVRON_MAX_SCREEN_SIZE = 14    // Maximum chevron size
-export const CHEVRON_PROPORTIONAL_SIZE = 0.10 // As fraction of radius
+export const CHEVRON_PROPORTIONAL_SIZE = 0.136 // As fraction of radius - matches clickable ring width
 
 // ============================================================================
 // TOLERANCES & THRESHOLDS
@@ -108,8 +109,8 @@ export const SLOT_TOLERANCE_FACTOR = 0.8     // Slot hit area relative to handle
 
 // Action row (mirror + delete icons) positioned below circle
 export const ACTION_ROW_OFFSET = 24          // Gap between circle edge and action row
-export const ACTION_ICON_SIZE = 6            // Size of action icons
-export const ACTION_ICON_SPACING = 20        // Horizontal spacing between icons
+export const ACTION_ICON_SIZE = 9            // Size of action icons
+export const ACTION_ICON_SPACING = 24        // Horizontal spacing between icons
 
 // ============================================================================
 // TANGENT HANDLES

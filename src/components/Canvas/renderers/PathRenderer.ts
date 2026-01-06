@@ -1,4 +1,4 @@
-import type { Shape, CircleShape, ArcSegment, EllipseArcSegment, LineSegment, BezierSegment, PathSegment } from '../../../types'
+import type { Shape, CircleShape, ArcSegment, EllipseArcSegment, LineSegment, BezierSegment, PathSegment, MirrorAxis } from '../../../types'
 import { computeTangentHull } from '../../../geometry/path'
 import { pointOnCircle } from '../../../geometry/math'
 import { useDebugStore } from '../../../stores/debugStore'
@@ -20,13 +20,14 @@ export function renderPath(
   closed: boolean = true,
   useStartPoint: boolean = true,
   useEndPoint: boolean = true,
-  pathStroke: string = '#ffffff'
+  pathStroke: string = '#ffffff',
+  mirrorAxis: MirrorAxis = 'vertical'
 ) {
   const circles = shapes.filter((s): s is CircleShape => s.type === 'circle')
   
   if (circles.length < 2) return
   
-  const pathData = computeTangentHull(circles, order, globalStretch, closed, useStartPoint, useEndPoint)
+  const pathData = computeTangentHull(circles, order, globalStretch, closed, useStartPoint, useEndPoint, mirrorAxis)
   
   if (pathData.segments.length === 0) return
   

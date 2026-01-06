@@ -6,6 +6,7 @@ import { DEFAULT_GRID_SIZE, MIN_GRID_SIZE, MAX_GRID_SIZE } from '../constants'
 interface SettingsState {
   // State
   snapToGrid: boolean
+  smartGuides: boolean  // Show alignment guides when dragging
   gridSize: number
   measurementMode: MeasurementMode
   showGrid: boolean
@@ -14,6 +15,8 @@ interface SettingsState {
   // Actions
   toggleSnap: () => void
   setSnapToGrid: (enabled: boolean) => void
+  toggleSmartGuides: () => void
+  setSmartGuides: (enabled: boolean) => void
   setGridSize: (size: number) => void
   cycleMeasurementMode: () => void
   setMeasurementMode: (mode: MeasurementMode) => void
@@ -27,6 +30,7 @@ export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       snapToGrid: true,
+      smartGuides: true,
       gridSize: DEFAULT_GRID_SIZE,
       measurementMode: 'minimal',
       showGrid: true,
@@ -37,6 +41,12 @@ export const useSettingsStore = create<SettingsState>()(
       })),
       
       setSnapToGrid: (enabled) => set({ snapToGrid: enabled }),
+      
+      toggleSmartGuides: () => set((state) => ({
+        smartGuides: !state.smartGuides
+      })),
+      
+      setSmartGuides: (enabled) => set({ smartGuides: enabled }),
       
       setGridSize: (size) => set({
         gridSize: Math.max(MIN_GRID_SIZE, Math.min(MAX_GRID_SIZE, size))
@@ -61,6 +71,7 @@ export const useSettingsStore = create<SettingsState>()(
       // Note: isolatePath is NOT persisted - it's a transient UI state
       partialize: (state) => ({
         snapToGrid: state.snapToGrid,
+        smartGuides: state.smartGuides,
         gridSize: state.gridSize,
         measurementMode: state.measurementMode,
         showGrid: state.showGrid

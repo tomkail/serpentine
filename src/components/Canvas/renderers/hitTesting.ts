@@ -31,13 +31,70 @@ import {
 // ============================================================================
 
 /**
+ * Compute a compact, symmetrical row layout for N dots.
+ * Returns an array of row sizes, e.g.:
+ *   3 → [2, 1]
+ *   4 → [2, 2]
+ *   5 → [3, 2]
+ *   6 → [3, 3]
+ *   7 → [2, 3, 2]
+ *   8 → [3, 2, 3]
+ *   etc.
+ */
+export function computeRowLayout(total: number): number[] {
+  if (total <= 0) return []
+  if (total === 1) return [1]
+  if (total === 2) return [2]
+  
+  // For 3-6: use 2 rows, bigger row on top
+  if (total <= 6) {
+    return [Math.ceil(total / 2), Math.floor(total / 2)]
+  }
+  
+  // For 7-15: use 3 rows, diamond pattern
+  // Middle row gets extra if remainder is 1, outer rows get extras if remainder is 2
+  if (total <= 15) {
+    const base = Math.floor(total / 3)
+    const rem = total % 3
+    if (rem === 0) return [base, base, base]
+    if (rem === 1) return [base, base + 1, base]
+    return [base + 1, base, base + 1]
+  }
+  
+  // For 16-24: use 4 rows, diamond pattern (inner rows larger)
+  if (total <= 24) {
+    const base = Math.floor(total / 4)
+    const rem = total % 4
+    const rows = [base, base, base, base]
+    // Distribute remainder: inner rows first (indices 1, 2), then outer (0, 3)
+    const order = [1, 2, 0, 3]
+    for (let i = 0; i < rem; i++) {
+      rows[order[i]]++
+    }
+    return rows
+  }
+  
+  // For 25+: use 5 rows, diamond pattern (center row first)
+  const base = Math.floor(total / 5)
+  const rem = total % 5
+  const rows = [base, base, base, base, base]
+  // Distribute remainder: center first, then spreading out
+  const order = [2, 1, 3, 0, 4]
+  for (let i = 0; i < rem; i++) {
+    rows[order[i]]++
+  }
+  return rows
+}
+
+/**
  * Calculate the width of the dot grid based on number of items
- * Grid width = (cols - 1) * spacing + dot_size
+ * Uses the maximum row width from the computed row layout
  */
 function calculateDotGridWidth(total: number): number {
   if (total <= 0) return 0
-  const cols = Math.min(total, MAX_DOT_COLS)
-  return (cols - 1) * DOT_SPACING + DOT_SIZE
+  const rowLayout = computeRowLayout(total)
+  const maxRowSize = Math.max(...rowLayout)
+  return (maxRowSize - 1) * DOT_SPACING + DOT_SIZE
 }
 
 /**
@@ -122,17 +179,27 @@ export function isOnEdgeZone(
 
 /**
  * Check if a point is in the body/move zone (inside direction ring)
+ * When the direction ring is faded out, the body zone expands to include
+ * the direction ring area, allowing users to move the circle by clicking
+ * anywhere inside the edge zone.
  */
 export function isInBodyZone(
   circle: CircleShape,
-  point: Point
+  point: Point,
+  zoom: number = 1
 ): boolean {
   const { center, radius } = circle
   const dx = point.x - center.x
   const dy = point.y - center.y
   const dist = Math.sqrt(dx * dx + dy * dy)
   
-  return dist < radius * DIRECTION_RING_INNER
+  // When direction ring is not interactable (faded out), expand body zone
+  // to include the direction ring area (up to DIRECTION_RING_OUTER)
+  const outerBoundary = isDirectionRingInteractable(radius, zoom)
+    ? DIRECTION_RING_INNER
+    : DIRECTION_RING_OUTER
+  
+  return dist < radius * outerBoundary
 }
 
 /**
@@ -223,21 +290,8 @@ export function isOnMirrorIcon(
 // ============================================================================
 
 /**
- * Calculate the grid layout for N items
- * Max columns based on constant, then wrap to new rows
- */
-function calculateGridLayout(total: number): { cols: number; rows: number } {
-  if (total <= 0) return { cols: 0, rows: 0 }
-  if (total <= MAX_DOT_COLS) return { cols: total, rows: 1 }
-  
-  // More than MAX_DOT_COLS: use MAX_DOT_COLS columns and wrap
-  const cols = MAX_DOT_COLS
-  const rows = Math.ceil(total / cols)
-  return { cols, rows }
-}
-
-/**
  * Get the position of a dot at a given index in the grid
+ * Uses the compact symmetrical row layout
  * Each row is centered independently
  */
 export function getDotPosition(
@@ -250,19 +304,27 @@ export function getDotPosition(
   const spacing = DOT_SPACING * uiScale
   const yOffset = DOT_GRID_Y_OFFSET * uiScale
   
-  const { cols, rows } = calculateGridLayout(total)
+  const rowLayout = computeRowLayout(total)
+  const numRows = rowLayout.length
   
-  // Calculate row and column for this index
-  const row = Math.floor(index / cols)
-  const col = index % cols
+  // Find which row this index belongs to and the column within that row
+  let row = 0
+  let col = index
+  let itemsBeforeThisRow = 0
   
-  // Calculate how many items are in this specific row
-  const itemsInThisRow = row < rows - 1 
-    ? cols  // Full row
-    : total - (rows - 1) * cols  // Last row may be partial
+  for (let r = 0; r < rowLayout.length; r++) {
+    if (col < rowLayout[r]) {
+      row = r
+      break
+    }
+    col -= rowLayout[r]
+    itemsBeforeThisRow += rowLayout[r]
+  }
+  
+  const itemsInThisRow = rowLayout[row]
   
   // Calculate grid height (for vertical centering)
-  const gridHeight = (rows - 1) * spacing
+  const gridHeight = (numRows - 1) * spacing
   
   // Calculate this row's width (for horizontal centering of this row)
   const rowWidth = (itemsInThisRow - 1) * spacing
@@ -278,6 +340,10 @@ export function getDotPosition(
  * Check if a point is on an index dot
  * Returns the dot index if hit, or null
  * Returns null if index dots have faded out due to zoom level
+ * 
+ * Uses a "closest dot within grid bounds" approach to ensure no gaps
+ * between clickable areas - any click within the grid area selects
+ * the nearest dot.
  */
 export function getIndexDotAt(
   circle: CircleShape,
@@ -290,18 +356,58 @@ export function getIndexDotAt(
     return null
   }
   
+  if (totalShapes <= 0) return null
+  
   const uiScale = 1 / zoom
-  const hitRadius = (DOT_SIZE / 2 + 2) * uiScale // Slightly larger hit area
+  const spacing = DOT_SPACING * uiScale
+  const yOffset = DOT_GRID_Y_OFFSET * uiScale
+  const dotRadius = (DOT_SIZE / 2) * uiScale
+  
+  const rowLayout = computeRowLayout(totalShapes)
+  const numRows = rowLayout.length
+  const maxRowSize = Math.max(...rowLayout)
+  
+  // Calculate grid bounds
+  const gridHeight = (numRows - 1) * spacing
+  const maxRowWidth = (maxRowSize - 1) * spacing
+  const gridCenterY = circle.center.y + yOffset
+  
+  // Expand bounds by half spacing + dot radius to cover full clickable area
+  const margin = spacing / 2 + dotRadius
+  const gridTop = gridCenterY - gridHeight / 2 - margin
+  const gridBottom = gridCenterY + gridHeight / 2 + margin
+  const gridLeft = circle.center.x - maxRowWidth / 2 - margin
+  const gridRight = circle.center.x + maxRowWidth / 2 + margin
+  
+  // Quick bounds check - reject if clearly outside grid area
+  if (point.y < gridTop || point.y > gridBottom ||
+      point.x < gridLeft || point.x > gridRight) {
+    return null
+  }
+  
+  // Find the closest dot
+  let closestDot = -1
+  let closestDistSq = Infinity
   
   for (let i = 0; i < totalShapes; i++) {
     const dotPos = getDotPosition(circle.center, i, totalShapes, zoom)
     const dx = point.x - dotPos.x
     const dy = point.y - dotPos.y
-    const dist = Math.sqrt(dx * dx + dy * dy)
+    const distSq = dx * dx + dy * dy
     
-    if (dist <= hitRadius) {
-      return i
+    if (distSq < closestDistSq) {
+      closestDistSq = distSq
+      closestDot = i
     }
+  }
+  
+  // Return closest dot if within reasonable range
+  // Use generous hit radius that covers the diagonal between dots
+  // This ensures no gaps in the clickable area
+  const maxHitRadius = spacing * 0.75 + dotRadius
+  
+  if (closestDot >= 0 && closestDistSq <= maxHitRadius * maxHitRadius) {
+    return closestDot
   }
   
   return null
@@ -506,20 +612,46 @@ export function getTangentHandleAt(
   const info = computeTangentHandleInfo(circle, circles, shapeOrder, closedPath, useStartPoint, useEndPoint)
   if (!info) return null
   
+  // Determine which handles are visible (same logic as rendering)
+  // This ensures hit testing matches what's actually rendered
+  const orderIndex = shapeOrder.indexOf(circle.id)
+  const isFirst = orderIndex === 0
+  const isLast = orderIndex === shapeOrder.length - 1
+  
+  let showEntry = true
+  let showExit = true
+  // Length handles are only shown when offset is non-zero (bezier curve exists)
+  let showEntryLength = info.hasEntryOffset
+  let showExitLength = info.hasExitOffset
+  
+  if (!closedPath) {
+    if (isFirst) {
+      showEntry = useStartPoint
+      // Don't show entry length handle for start point (no bezier connection)
+      showEntryLength = false
+    }
+    if (isLast) {
+      showExit = useEndPoint
+      // Don't show exit length handle for end point (no bezier connection)
+      showExitLength = false
+    }
+  }
+  
   // Check handles first (they're on top)
-  if (distance(point, info.entryPoint) <= tolerance) {
+  if (showEntry && distance(point, info.entryPoint) <= tolerance) {
     return 'entry-offset'
   }
   
-  if (distance(point, info.exitPoint) <= tolerance) {
+  if (showExit && distance(point, info.exitPoint) <= tolerance) {
     return 'exit-offset'
   }
   
-  if (distance(point, info.entryLengthHandle) <= tolerance) {
+  // Only check length handles if they're visible
+  if (showEntryLength && distance(point, info.entryLengthHandle) <= tolerance) {
     return 'entry-length'
   }
   
-  if (distance(point, info.exitLengthHandle) <= tolerance) {
+  if (showExitLength && distance(point, info.exitLengthHandle) <= tolerance) {
     return 'exit-length'
   }
   
@@ -527,19 +659,20 @@ export function getTangentHandleAt(
   // Slots are smaller, so use smaller tolerance
   const slotTolerance = tolerance * SLOT_TOLERANCE_FACTOR
   
-  if (info.hasEntryOffset && distance(point, info.rawEntryPoint) <= slotTolerance) {
+  if (showEntry && info.hasEntryOffset && distance(point, info.rawEntryPoint) <= slotTolerance) {
     return 'entry-offset-slot'
   }
   
-  if (info.hasExitOffset && distance(point, info.rawExitPoint) <= slotTolerance) {
+  if (showExit && info.hasExitOffset && distance(point, info.rawExitPoint) <= slotTolerance) {
     return 'exit-offset-slot'
   }
   
-  if (info.hasEntryLengthOffset && distance(point, info.rawEntryLengthHandle) <= slotTolerance) {
+  // Length slots also respect visibility
+  if (showEntryLength && info.hasEntryLengthOffset && distance(point, info.rawEntryLengthHandle) <= slotTolerance) {
     return 'entry-length-slot'
   }
   
-  if (info.hasExitLengthOffset && distance(point, info.rawExitLengthHandle) <= slotTolerance) {
+  if (showExitLength && info.hasExitLengthOffset && distance(point, info.rawExitLengthHandle) <= slotTolerance) {
     return 'exit-length-slot'
   }
   

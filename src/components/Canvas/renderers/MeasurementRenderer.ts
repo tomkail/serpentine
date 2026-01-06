@@ -1,4 +1,4 @@
-import type { Shape, CircleShape, MeasurementMode, LineSegment } from '../../../types'
+import type { Shape, CircleShape, MeasurementMode, LineSegment, MirrorAxis } from '../../../types'
 import { computeTangentHull } from '../../../geometry/path'
 import { MEASUREMENT_LABEL_OFFSET } from '../../../constants'
 
@@ -36,7 +36,8 @@ export function renderMeasurements(
   zoom: number = 1,
   closed: boolean = true,
   useStartPoint: boolean = true,
-  useEndPoint: boolean = true
+  useEndPoint: boolean = true,
+  mirrorAxis: MirrorAxis = 'vertical'
 ) {
   if (mode === 'clean') return
   
@@ -60,7 +61,7 @@ export function renderMeasurements(
   
   // Render path measurements
   if (circles.length >= 2) {
-    const pathData = computeTangentHull(circles, order, 0, closed, useStartPoint, useEndPoint)
+    const pathData = computeTangentHull(circles, order, 0, closed, useStartPoint, useEndPoint, mirrorAxis)
     
     // Segment lengths (only in detailed mode)
     if (mode === 'detailed') {

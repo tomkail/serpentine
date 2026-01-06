@@ -1,4 +1,4 @@
-import type { Shape, CircleShape, Point, CanvasTheme, HoverTarget, DragMode } from '../../../types'
+import type { Shape, CircleShape, Point, CanvasTheme, HoverTarget, DragMode, MirrorAxis } from '../../../types'
 import { computeTangentHandleInfo, TangentHandleInfo } from './ShapeRenderer'
 import { expandMirroredCircles } from '../../../geometry/path'
 
@@ -225,7 +225,8 @@ export function renderHandleValues(
   zoom: number,
   closedPath: boolean = true,
   useStartPoint: boolean = true,
-  useEndPoint: boolean = true
+  useEndPoint: boolean = true,
+  mirrorAxis: MirrorAxis = 'vertical'
 ) {
   const uiScale = 1 / zoom
 
@@ -251,7 +252,7 @@ export function renderHandleValues(
   // Compute tangent info if needed
   let tangentInfo: TangentHandleInfo | null = null
   const circles = shapes.filter((s): s is CircleShape => s.type === 'circle')
-  const { expandedShapes, expandedOrder } = expandMirroredCircles(circles, shapeOrder)
+  const { expandedShapes, expandedOrder } = expandMirroredCircles(circles, shapeOrder, mirrorAxis)
   
   if (hoverTarget?.type?.includes('offset') || 
       hoverTarget?.type?.includes('length') ||

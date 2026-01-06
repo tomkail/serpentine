@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { Shape, SerpentineDocument, CircleShape } from '../types'
+import type { Shape, SerpentineDocument, CircleShape, MirrorAxis } from '../types'
 import { defaultPreset } from '../utils/presets'
 
 interface DocumentState {
@@ -11,6 +11,7 @@ interface DocumentState {
   closedPath: boolean    // Whether the path loops back to start
   useStartPoint: boolean // Whether to use tangent point on first circle (when not looping)
   useEndPoint: boolean   // Whether to use tangent point on last circle (when not looping)
+  mirrorAxis: MirrorAxis // Which axis to mirror across ('vertical' = x=0, 'horizontal' = y=0)
   fileName: string | null
   isDirty: boolean       // Whether document has unsaved changes
   
@@ -18,6 +19,7 @@ interface DocumentState {
   addShape: (shape: Shape) => void
   insertShapeAt: (shape: Shape, orderIndex: number) => void  // Insert at specific position in order
   updateShape: (id: string, updates: Partial<Shape>) => void
+  updateShapes: (updates: Map<string, Partial<Shape>>) => void  // Batch update multiple shapes
   removeShape: (id: string) => void
   reorderShapes: (newOrder: string[]) => void
   
@@ -38,6 +40,7 @@ interface DocumentState {
   duplicateShape: (id: string) => void
   toggleDirection: (id: string) => void
   toggleMirror: (id: string) => void
+  toggleMirrorAxis: () => void
   toggleClosedPath: () => void
   setClosedPath: (closed: boolean) => void
   toggleUseStartPoint: () => void
@@ -52,7 +55,7 @@ interface DocumentState {
 }
 
 // Default starting document - uses the default preset with fresh UUIDs
-const createDefaultDocument = (): Pick<DocumentState, 'shapes' | 'shapeOrder' | 'globalStretch' | 'closedPath' | 'useStartPoint' | 'useEndPoint' | 'fileName' | 'isDirty'> => {
+const createDefaultDocument = (): Pick<DocumentState, 'shapes' | 'shapeOrder' | 'globalStretch' | 'closedPath' | 'useStartPoint' | 'useEndPoint' | 'mirrorAxis' | 'fileName' | 'isDirty'> => {
   const doc = defaultPreset.document
   
   // Create a mapping from preset IDs to new UUIDs
@@ -77,6 +80,7 @@ const createDefaultDocument = (): Pick<DocumentState, 'shapes' | 'shapeOrder' | 
     closedPath: doc.settings?.closedPath ?? false,
     useStartPoint: doc.settings?.useStartPoint ?? true,
     useEndPoint: doc.settings?.useEndPoint ?? true,
+    mirrorAxis: 'vertical' as MirrorAxis,
     fileName: null,
     isDirty: false
   }
@@ -120,6 +124,14 @@ export const useDocumentStore = create<DocumentState>()(
         shapes: state.shapes.map(shape => 
           shape.id === id ? { ...shape, ...updates } : shape
         ),
+        isDirty: true
+      })),
+      
+      updateShapes: (updates) => set((state) => ({
+        shapes: state.shapes.map(shape => {
+          const shapeUpdates = updates.get(shape.id)
+          return shapeUpdates ? { ...shape, ...shapeUpdates } : shape
+        }),
         isDirty: true
       })),
       
@@ -232,6 +244,11 @@ export const useDocumentStore = create<DocumentState>()(
         isDirty: true
       })),
       
+      toggleMirrorAxis: () => set((state) => ({
+        mirrorAxis: state.mirrorAxis === 'vertical' ? 'horizontal' : 'vertical',
+        isDirty: true
+      })),
+      
       toggleClosedPath: () => set((state) => ({
         closedPath: !state.closedPath,
         isDirty: true
@@ -304,6 +321,7 @@ export const useDocumentStore = create<DocumentState>()(
         closedPath: state.closedPath,
         useStartPoint: state.useStartPoint,
         useEndPoint: state.useEndPoint,
+        mirrorAxis: state.mirrorAxis,
         fileName: state.fileName
       }),
       // Migrate old data
@@ -319,6 +337,8 @@ export const useDocumentStore = create<DocumentState>()(
           // Default start/end point settings to true for backwards compatibility
           useStartPoint: persisted.useStartPoint ?? true,
           useEndPoint: persisted.useEndPoint ?? true,
+          // Default mirrorAxis to vertical for backwards compatibility
+          mirrorAxis: persisted.mirrorAxis ?? 'vertical',
           // Migrate shapes: wrapSide → direction, fling/tension → stretch
           shapes: (persisted.shapes ?? currentState.shapes).map(shape => {
             const legacyWrapSide = (shape as any).wrapSide as 'left' | 'right' | undefined

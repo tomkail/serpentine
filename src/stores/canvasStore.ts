@@ -12,3 +12,4 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
   setDimensions: (width, height) => set({ width, height })
 }))
 
+

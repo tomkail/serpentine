@@ -13,6 +13,7 @@ export interface Rect {
 
 // Shape types
 export type Direction = 'cw' | 'ccw'  // Clockwise or counter-clockwise
+export type MirrorAxis = 'vertical' | 'horizontal'  // Mirror axis orientation
 
 export interface CircleShape {
   id: string
@@ -104,7 +105,11 @@ export type DragMode =
   | 'tangent-exit-offset'
   | 'tangent-entry-length'
   | 'tangent-exit-length'
+  | 'marquee'
   | null
+
+// Marquee selection mode: how the selection should be modified
+export type MarqueeMode = 'replace' | 'add' | 'subtract'
 
 export interface DragState {
   mode: DragMode
@@ -116,6 +121,16 @@ export interface DragState {
   startAngle?: number  // Base angle for offset calculation
   startOffset?: number // Initial offset value
   startTangentLength?: number // Initial tangent length multiplier
+  // For linked handle dragging (Shift/Alt modifiers) - track the other handle's start value
+  startOtherOffset?: number // Initial offset value of the other handle
+  startOtherTangentLength?: number // Initial tangent length of the other handle
+  // For multi-select move: track all selected shapes' starting centers
+  shapeStarts?: Map<string, Point>
+  // For marquee selection
+  marqueeMode?: MarqueeMode
+  marqueeStart?: Point  // Start point of the marquee rectangle
+  marqueeCurrent?: Point  // Current point (end of rectangle)
+  originalSelection?: string[]  // Selection before marquee started (for add/subtract modes)
 }
 
 // Settings types

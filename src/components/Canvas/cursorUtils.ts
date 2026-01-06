@@ -4,7 +4,7 @@
  */
 
 import { CURSOR_ANGLE_INCREMENT } from '../../constants'
-import type { HoverTarget, DragMode } from '../../types'
+import type { HoverTarget, DragMode, MarqueeMode } from '../../types'
 
 /**
  * Generate a "reverse" cursor SVG for the direction toggle
@@ -47,6 +47,60 @@ function getReverseCursor(): string {
 
 // Cache the reverse cursor
 export const reverseCursor = getReverseCursor()
+
+/**
+ * Generate a marquee selection cursor with a modifier indicator
+ * Shows a crosshair with a + or - symbol to indicate add/subtract mode
+ */
+function generateMarqueeCursor(mode: MarqueeMode): string {
+  let symbol = ''
+  let symbolColor = 'black'
+  
+  if (mode === 'add') {
+    symbol = `
+      <!-- Plus sign -->
+      <line x1="18" y1="14" x2="22" y2="14" stroke="white" stroke-width="3" stroke-linecap="round"/>
+      <line x1="20" y1="12" x2="20" y2="16" stroke="white" stroke-width="3" stroke-linecap="round"/>
+      <line x1="18" y1="14" x2="22" y2="14" stroke="${symbolColor}" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="20" y1="12" x2="20" y2="16" stroke="${symbolColor}" stroke-width="1.5" stroke-linecap="round"/>
+    `
+  } else if (mode === 'subtract') {
+    symbol = `
+      <!-- Minus sign -->
+      <line x1="17" y1="14" x2="23" y2="14" stroke="white" stroke-width="3" stroke-linecap="round"/>
+      <line x1="17" y1="14" x2="23" y2="14" stroke="${symbolColor}" stroke-width="1.5" stroke-linecap="round"/>
+    `
+  }
+  
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+    <!-- Crosshair -->
+    <line x1="12" y1="2" x2="12" y2="9" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="12" y1="15" x2="12" y2="22" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="2" y1="12" x2="9" y2="12" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="15" y1="12" x2="22" y2="12" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="12" y1="2" x2="12" y2="9" stroke="black" stroke-width="1" stroke-linecap="round"/>
+    <line x1="12" y1="15" x2="12" y2="22" stroke="black" stroke-width="1" stroke-linecap="round"/>
+    <line x1="2" y1="12" x2="9" y2="12" stroke="black" stroke-width="1" stroke-linecap="round"/>
+    <line x1="15" y1="12" x2="22" y2="12" stroke="black" stroke-width="1" stroke-linecap="round"/>
+    ${symbol}
+  </svg>`
+  
+  return `url('data:image/svg+xml,${encodeURIComponent(svg)}') 12 12, crosshair`
+}
+
+// Cache marquee cursors
+export const marqueeCursors: Record<MarqueeMode, string> = {
+  replace: generateMarqueeCursor('replace'),
+  add: generateMarqueeCursor('add'),
+  subtract: generateMarqueeCursor('subtract')
+}
+
+/**
+ * Get the marquee cursor based on the mode
+ */
+export function getMarqueeCursor(mode: MarqueeMode): string {
+  return marqueeCursors[mode]
+}
 
 /**
  * Generate a rotated scale cursor SVG data URL
@@ -97,12 +151,14 @@ export function getCursorForTarget(
   hoverTarget: HoverTarget,
   isDragging: boolean,
   dragMode: DragMode,
-  scaleCursorAngle: number
+  scaleCursorAngle: number,
+  marqueeMode?: MarqueeMode
 ): string {
   if (isDragging) {
     if (dragMode === 'move') return 'move'
     if (dragMode === 'scale') return getScaleCursor(scaleCursorAngle)
     if (dragMode?.startsWith('tangent-')) return 'crosshair'
+    if (dragMode === 'marquee' && marqueeMode) return getMarqueeCursor(marqueeMode)
     return 'grabbing'
   }
   

@@ -1,4 +1,4 @@
-import type { Point } from '../../../types'
+import type { Point, MirrorAxis } from '../../../types'
 import {
   GRID_LEVEL_MULTIPLIER,
   GRID_MIN_SCREEN_SPACING,
@@ -158,18 +158,21 @@ function smoothstep(t: number): number {
 
 /**
  * Render the mirror axis line when mirroring is active
- * Draws a vertical dashed line at x=0
+ * Draws a dashed line at x=0 (vertical) or y=0 (horizontal)
  * Uses grid color (not accent) since it's non-interactive
  */
 export function renderMirrorAxis(
   ctx: CanvasRenderingContext2D,
-  _canvasWidth: number,
+  canvasWidth: number,
   canvasHeight: number,
   pan: Point,
   zoom: number,
-  gridColor: string = '#2a2a2a'
+  gridColor: string = '#2a2a2a',
+  axis: MirrorAxis = 'vertical'
 ) {
   // Calculate visible area in world coordinates
+  const worldLeft = -pan.x / zoom
+  const worldRight = (canvasWidth - pan.x) / zoom
   const worldTop = -pan.y / zoom
   const worldBottom = (canvasHeight - pan.y) / zoom
   
@@ -183,10 +186,17 @@ export function renderMirrorAxis(
   
   ctx.save()
   
-  // Draw the mirror axis line at x = 0
   ctx.beginPath()
-  ctx.moveTo(0, worldTop - margin)
-  ctx.lineTo(0, worldBottom + margin)
+  
+  if (axis === 'vertical') {
+    // Draw vertical mirror axis line at x = 0
+    ctx.moveTo(0, worldTop - margin)
+    ctx.lineTo(0, worldBottom + margin)
+  } else {
+    // Draw horizontal mirror axis line at y = 0
+    ctx.moveTo(worldLeft - margin, 0)
+    ctx.lineTo(worldRight + margin, 0)
+  }
   
   // Dashed line style - uses grid color with higher opacity for visibility
   ctx.setLineDash([12 * uiScale, 6 * uiScale])
@@ -194,12 +204,18 @@ export function renderMirrorAxis(
   ctx.lineWidth = 2 * uiScale
   ctx.stroke()
   
-  // Draw small "mirror" label near the top of the visible area
+  // Draw small marker near the axis
   ctx.setLineDash([])
   ctx.font = `${11 * uiScale}px system-ui, sans-serif`
   ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)`
   ctx.textAlign = 'center'
-  ctx.fillText('⧫', 0, worldTop + 30 * uiScale)
+  ctx.textBaseline = 'middle'
+  
+  if (axis === 'vertical') {
+    ctx.fillText('⧫', 0, worldTop + 30 * uiScale)
+  } else {
+    ctx.fillText('⧫', worldLeft + 30 * uiScale, 0)
+  }
   
   ctx.restore()
 }

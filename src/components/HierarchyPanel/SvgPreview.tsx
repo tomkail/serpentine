@@ -12,6 +12,7 @@ export function SvgPreview() {
   const closedPath = useDocumentStore(state => state.closedPath)
   const useStartPoint = useDocumentStore(state => state.useStartPoint)
   const useEndPoint = useDocumentStore(state => state.useEndPoint)
+  const mirrorAxis = useDocumentStore(state => state.mirrorAxis)
   
   const svgData = useMemo(() => {
     const circles = shapes.filter((s): s is CircleShape => s.type === 'circle')
@@ -23,7 +24,8 @@ export function SvgPreview() {
       globalStretch,
       closedPath,
       useStartPoint,
-      useEndPoint
+      useEndPoint,
+      mirrorAxis
     )
     
     if (pathData.segments.length === 0) return null
@@ -44,7 +46,7 @@ export function SvgPreview() {
       width: viewBoxWidth,
       height: viewBoxHeight
     }
-  }, [shapes, shapeOrder, globalStretch, closedPath, useStartPoint, useEndPoint])
+  }, [shapes, shapeOrder, globalStretch, closedPath, useStartPoint, useEndPoint, mirrorAxis])
   
   if (!svgData) {
     return (
@@ -80,5 +82,6 @@ export function SvgPreview() {
     </div>
   )
 }
+
 
 

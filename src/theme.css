@@ -16,7 +16,7 @@
   
   /* Layout sizes - constant across themes */
   --menu-height: 32px;
-  --toolbar-height: 36px;
+  --toolbar-height: 48px;
   --panel-width: 240px;
   
   /* Fallback values (will be overridden by ThemeProvider) */

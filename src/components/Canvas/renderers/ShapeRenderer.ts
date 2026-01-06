@@ -1,12 +1,10 @@
-import type { Shape, CircleShape, Point, CanvasTheme, HoverTarget } from '../../../types'
+import type { Shape, CircleShape, Point, CanvasTheme, HoverTarget, MirrorAxis } from '../../../types'
 import { getMirroredCircles, createMirroredCircle, expandMirroredCircles } from '../../../geometry/path'
 import { drawMirrorIconCanvas, drawDeleteIconCanvas } from '../../icons/Icons'
 import {
   DIRECTION_RING_RADIUS,
   DOT_SIZE,
   CHEVRON_TARGET_SPACING,
-  CHEVRON_MIN_SCREEN_SIZE,
-  CHEVRON_MAX_SCREEN_SIZE,
   CHEVRON_PROPORTIONAL_SIZE,
   ACTION_ROW_OFFSET,
   ACTION_ICON_SIZE,
@@ -49,7 +47,8 @@ export function renderShapes(
   hoverTarget: HoverTarget,
   theme: CanvasTheme,
   zoom: number = 1,
-  shapeOrder: string[] = []
+  shapeOrder: string[] = [],
+  mirrorAxis: MirrorAxis = 'vertical'
 ) {
   // Separate shapes into non-selected and selected
   // Selected shapes are drawn last so they appear on top
@@ -106,7 +105,7 @@ export function renderShapes(
   // Get mirrored ghost circles for circles with mirrored=true
   // Draw these on top of all regular circles so they're always visible
   const circles = shapes.filter((s): s is CircleShape => s.type === 'circle')
-  const mirroredCircles = getMirroredCircles(circles)
+  const mirroredCircles = getMirroredCircles(circles, mirrorAxis)
   
   for (const mirrorCircle of mirroredCircles) {
     // Find the original circle to get its hover/selection state
@@ -181,18 +180,19 @@ export function renderSelectedTangentHandles(
   zoom: number,
   closedPath: boolean = true,
   useStartPoint: boolean = true,
-  useEndPoint: boolean = true
+  useEndPoint: boolean = true,
+  mirrorAxis: MirrorAxis = 'vertical'
 ) {
   const circles = shapes.filter((s): s is CircleShape => s.type === 'circle')
   const selectedCircles = circles.filter(c => selectedIds.includes(c.id))
   
   // Get expanded shapes and order (including mirrored circles)
-  const { expandedShapes, expandedOrder } = expandMirroredCircles(circles, shapeOrder)
+  const { expandedShapes, expandedOrder } = expandMirroredCircles(circles, shapeOrder, mirrorAxis)
   
   // First render ghost handles for mirrored versions of selected circles
   for (const circle of selectedCircles) {
     if (circle.mirrored) {
-      const mirroredCircle = createMirroredCircle(circle)
+      const mirroredCircle = createMirroredCircle(circle, mirrorAxis)
       renderGhostTangentHandles(ctx, mirroredCircle, expandedShapes, expandedOrder, theme, zoom, closedPath, useStartPoint, useEndPoint)
     }
   }
@@ -325,11 +325,9 @@ function drawDirectionRing(
   const circumference = 2 * Math.PI * ringRadius * zoom
   const numChevrons = Math.max(12, Math.min(72, Math.floor(circumference / CHEVRON_TARGET_SPACING)))
   
-  // Chevron size matches the selectable ring width
-  const proportionalSize = radius * CHEVRON_PROPORTIONAL_SIZE
-  const minScreenSize = CHEVRON_MIN_SCREEN_SIZE * uiScale
-  const maxScreenSize = CHEVRON_MAX_SCREEN_SIZE * uiScale
-  const chevronSize = Math.max(minScreenSize, Math.min(maxScreenSize, proportionalSize))
+  // Chevron size matches the selectable ring width - always proportional to radius
+  // No min/max clamping so visual width always matches clickable area
+  const chevronSize = radius * CHEVRON_PROPORTIONAL_SIZE
   
   const weight = (isHovered ? theme.weights.medium : theme.weights.light) * uiScale
   
@@ -407,7 +405,8 @@ function drawActionRow(
     size: iconSize,
     color: mirrorColor,
     haloColor: theme.handle.outerStroke,
-    lineWidth: theme.weights.medium * uiScale
+    lineWidth: theme.weights.medium * uiScale,
+    uiScale
   })
   
   // Draw delete icon (only if deletion is allowed)
@@ -419,7 +418,8 @@ function drawActionRow(
       size: iconSize,
       color: deleteColor,
       haloColor: theme.handle.outerStroke,
-      lineWidth: theme.weights.medium * uiScale
+      lineWidth: theme.weights.medium * uiScale,
+      uiScale
     })
   }
 }
