@@ -64,6 +64,11 @@ let frameCount = 0
 let frameTimes: number[] = []
 const MAX_FRAME_SAMPLES = 60
 
+// Spike detection
+const SPIKE_THRESHOLD_MS = 8 // Flag anything over 8ms as a spike
+let lastGCEstimate = 0
+let memorySnapshots: number[] = []
+
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
@@ -252,6 +257,58 @@ export function getAvgFrameTime(): number {
   return frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length
 }
 
+/**
+ * Estimate memory usage (if available).
+ * Returns memory in MB, or -1 if not available.
+ */
+export function getMemoryUsageMB(): number {
+  const memory = (performance as any).memory
+  if (memory) {
+    return memory.usedJSHeapSize / (1024 * 1024)
+  }
+  return -1
+}
+
+/**
+ * Track memory for GC detection.
+ * GC events show as sudden drops in memory usage.
+ */
+export function trackMemory(): { usedMB: number; likelyGC: boolean } {
+  const currentMB = getMemoryUsageMB()
+  if (currentMB < 0) {
+    return { usedMB: -1, likelyGC: false }
+  }
+  
+  memorySnapshots.push(currentMB)
+  if (memorySnapshots.length > 10) {
+    memorySnapshots.shift()
+  }
+  
+  // Detect GC: significant drop in memory (>2MB) from recent peak
+  const recentPeak = Math.max(...memorySnapshots.slice(0, -1), 0)
+  const likelyGC = recentPeak - currentMB > 2
+  
+  if (likelyGC) {
+    lastGCEstimate = performance.now()
+    if (config.logToConsole) {
+      console.log(
+        `%c🗑️ Likely GC detected: ${recentPeak.toFixed(1)}MB → ${currentMB.toFixed(1)}MB (freed ${(recentPeak - currentMB).toFixed(1)}MB)`,
+        'color: #ffd93d;'
+      )
+    }
+  }
+  
+  return { usedMB: currentMB, likelyGC }
+}
+
+/**
+ * Get time since last detected GC (for correlation with spikes).
+ */
+export function getTimeSinceLastGC(): number {
+  if (lastGCEstimate === 0) return -1
+  return performance.now() - lastGCEstimate
+}
+
 // ============================================================================
 // SUMMARY MANAGEMENT
 // ============================================================================
@@ -318,8 +375,23 @@ function logMeasurement(measurement: ProfileMeasurement): void {
     ? ` (${Object.entries(measurement.metadata).map(([k, v]) => `${k}: ${v}`).join(', ')})`
     : ''
   
+  // Check for spike and add context
+  const isSpike = measurement.duration > SPIKE_THRESHOLD_MS
+  const memInfo = getMemoryUsageMB()
+  const gcTime = getTimeSinceLastGC()
+  
+  let spikeHint = ''
+  if (isSpike) {
+    // Try to explain the spike
+    if (gcTime >= 0 && gcTime < 100) {
+      spikeHint = ' ⚠️ Likely GC-related'
+    } else if (measurement.name === 'Canvas.render' && frameCount < 5) {
+      spikeHint = ' ⚠️ Initial renders (JIT warmup)'
+    }
+  }
+  
   console.groupCollapsed(
-    `%c⏱ ${measurement.name}%c ${measurement.duration.toFixed(2)}ms${metaStr}`,
+    `%c⏱ ${measurement.name}%c ${measurement.duration.toFixed(2)}ms${metaStr}${spikeHint}`,
     `color: ${color}; font-weight: bold;`,
     `color: ${color};`
   )

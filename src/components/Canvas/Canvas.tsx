@@ -18,7 +18,7 @@ import { hasActiveAnimations } from './renderers/opacityAnimation'
 import { drawPlusIconCanvas } from '../icons/Icons'
 import { reportError } from '../../stores/notificationStore'
 import { fitToView } from '../../utils/viewportActions'
-import { startMeasure, endMeasure, markFrame, getFPS, getAvgFrameTime, isProfilerEnabled } from '../../utils/profiler'
+import { startMeasure, endMeasure, markFrame, getFPS, getAvgFrameTime, isProfilerEnabled, trackMemory, getMemoryUsageMB } from '../../utils/profiler'
 import styles from './Canvas.module.css'
 
 export function Canvas() {
@@ -74,8 +74,11 @@ export function Canvas() {
     const ctx = canvas?.getContext('2d')
     if (!canvas || !ctx) return
     
-    // Mark frame for FPS tracking
+    // Mark frame for FPS tracking and detect GC
     markFrame()
+    if (isProfilerEnabled()) {
+      trackMemory() // Track memory to detect GC pauses
+    }
     startMeasure('Canvas.render', { shapes: shapes.length })
     
     try {
@@ -267,13 +270,14 @@ export function Canvas() {
     
     const fps = getFPS()
     const frameTime = getAvgFrameTime()
+    const memoryMB = getMemoryUsageMB()
     
     // Background
     ctx.save()
     ctx.setTransform(1, 0, 0, 1, 0, 0) // Reset transform to screen space
     
-    const boxWidth = 140 * dpr
-    const boxHeight = 60 * dpr
+    const boxWidth = 150 * dpr
+    const boxHeight = memoryMB >= 0 ? 76 * dpr : 60 * dpr // Taller if memory available
     const x = width - boxWidth - padding
     const y = padding
     
@@ -287,6 +291,12 @@ export function Canvas() {
     ctx.fillStyle = '#ffffff'
     ctx.fillText(`Frame: ${frameTime.toFixed(2)}ms`, x + 8 * dpr, y + lineHeight * 2)
     ctx.fillText(`Shapes: ${shapes.length}`, x + 8 * dpr, y + lineHeight * 3)
+    
+    // Show memory if available (Chrome only)
+    if (memoryMB >= 0) {
+      ctx.fillStyle = memoryMB > 100 ? '#ffd93d' : '#888888'
+      ctx.fillText(`Memory: ${memoryMB.toFixed(1)}MB`, x + 8 * dpr, y + lineHeight * 4)
+    }
     
     ctx.restore()
   }

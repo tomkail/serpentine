@@ -1,6 +1,7 @@
 import type { Shape, CircleShape, Point, CanvasTheme, HoverTarget, MirrorAxis } from '../../../types'
 import { getMirroredCircles, createMirroredCircle, expandMirroredCircles } from '../../../geometry/path'
 import { drawMirrorIconCanvas, drawDeleteIconCanvas } from '../../icons/Icons'
+import { buildIdSet } from '../../../utils/objectPool'
 import {
   DIRECTION_RING_RADIUS,
   DOT_SIZE,
@@ -51,20 +52,25 @@ export function renderShapes(
   shapeOrder: string[] = [],
   mirrorAxis: MirrorAxis = 'vertical'
 ) {
-  // Separate shapes into non-selected and selected
-  // Selected shapes are drawn last so they appear on top
-  const nonSelectedShapes = shapes.filter(s => !selectedIds.includes(s.id))
-  const selectedShapes = shapes.filter(s => selectedIds.includes(s.id))
+  // Use pooled Set for O(1) lookups (avoids creating new Set each frame)
+  const selectedSet = buildIdSet(selectedIds)
   
   // Only count shapes in shapeOrder (excludes mirror shapes)
   const totalShapes = shapeOrder.length
   
-  // Can only delete if more than 2 circles exist (must keep at least 2)
-  const circleCount = shapes.filter(s => s.type === 'circle').length
+  // Count circles without creating new array (avoid GC)
+  let circleCount = 0
+  for (let i = 0; i < shapes.length; i++) {
+    if (shapes[i].type === 'circle') circleCount++
+  }
   const canDelete = circleCount > 2
   
-  // Draw non-selected shapes first (underneath)
-  for (const shape of nonSelectedShapes) {
+  // Two-pass rendering without creating new arrays:
+  // Pass 1: Draw non-selected shapes (underneath)
+  for (let i = 0; i < shapes.length; i++) {
+    const shape = shapes[i]
+    if (selectedSet.has(shape.id)) continue // Skip selected, draw later
+    
     if (shape.type === 'circle') {
       const shapeIndex = shapeOrder.indexOf(shape.id)
       const isInOrder = shapeIndex >= 0
@@ -74,7 +80,6 @@ export function renderShapes(
         isHovered: shape.id === hoveredId,
         hoverTarget,
         zoom,
-        // Only show index dots for shapes in the order (not mirrors)
         shapeIndex: isInOrder ? shapeIndex : undefined,
         totalShapes: isInOrder ? totalShapes : undefined,
         canDelete,
@@ -83,8 +88,11 @@ export function renderShapes(
     }
   }
   
-  // Draw selected shapes (on top of non-selected)
-  for (const shape of selectedShapes) {
+  // Pass 2: Draw selected shapes (on top)
+  for (let i = 0; i < shapes.length; i++) {
+    const shape = shapes[i]
+    if (!selectedSet.has(shape.id)) continue // Skip non-selected
+    
     if (shape.type === 'circle') {
       const shapeIndex = shapeOrder.indexOf(shape.id)
       const isInOrder = shapeIndex >= 0
@@ -94,7 +102,6 @@ export function renderShapes(
         isHovered: shape.id === hoveredId,
         hoverTarget,
         zoom,
-        // Only show index dots for shapes in the order (not mirrors)
         shapeIndex: isInOrder ? shapeIndex : undefined,
         totalShapes: isInOrder ? totalShapes : undefined,
         canDelete,
@@ -105,10 +112,11 @@ export function renderShapes(
   
   // Get mirrored ghost circles for circles with mirrored=true
   // Draw these on top of all regular circles so they're always visible
-  const circles = shapes.filter((s): s is CircleShape => s.type === 'circle')
-  const mirroredCircles = getMirroredCircles(circles, mirrorAxis)
+  // Note: getMirroredCircles is optimized to only create objects for mirrored circles
+  const mirroredCircles = getMirroredCircles(shapes as CircleShape[], mirrorAxis)
   
-  for (const mirrorCircle of mirroredCircles) {
+  for (let i = 0; i < mirroredCircles.length; i++) {
+    const mirrorCircle = mirroredCircles[i]
     // Find the original circle to get its hover/selection state
     // The mirrored circle's ID is `${originalId}_mirror`
     const originalId = mirrorCircle.id.replace('_mirror', '')

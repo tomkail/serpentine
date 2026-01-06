@@ -265,6 +265,61 @@ const heart: Preset = {
 }
 
 /**
+ * Serpentine logo shape
+ * The app's signature S-curve logo
+ */
+const serpentine: Preset = {
+  name: 'Serpentine',
+  description: 'The app\'s signature S-curve logo',
+  document: {
+    version: 1,
+    name: 'Serpentine',
+    shapes: [
+      {
+        id: 'default-c1',
+        type: 'circle',
+        name: 'Circle 1',
+        center: { x: -40, y: -20 },
+        radius: 90,
+        direction: 'cw'
+      },
+      {
+        id: 'default-c2',
+        type: 'circle',
+        name: 'Circle 2',
+        center: { x: 10, y: 0 },
+        radius: 90,
+        direction: 'cw',
+        exitOffset: -2.2689280275926285
+      },
+      {
+        id: 'default-c3',
+        type: 'circle',
+        name: 'Circle 3',
+        center: { x: 120, y: 160 },
+        radius: 90,
+        direction: 'ccw'
+      },
+      {
+        id: 'default-c4',
+        type: 'circle',
+        name: 'Circle 4',
+        center: { x: -80, y: 140 },
+        radius: 110,
+        direction: 'ccw',
+        entryOffset: 1.9198621771937625
+      }
+    ],
+    pathOrder: ['default-c4', 'default-c3', 'default-c1', 'default-c2'],
+    settings: {
+      closedPath: false,
+      useStartPoint: true,
+      useEndPoint: true
+    }
+  }
+}
+
+/**
  * Duck shape
  * A playful duck silhouette using 4 circles
  */
@@ -376,6 +431,7 @@ export const defaultPreset: Preset = {
 
 export const presets: Preset[] = [
   defaultPreset,
+  serpentine,
   guitar,
   mugello,
   heart,

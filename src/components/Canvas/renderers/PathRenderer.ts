@@ -23,9 +23,16 @@ export function renderPath(
   pathStroke: string = '#ffffff',
   mirrorAxis: MirrorAxis = 'vertical'
 ) {
-  const circles = shapes.filter((s): s is CircleShape => s.type === 'circle')
+  // Count circles without creating new array (avoid GC)
+  let circleCount = 0
+  for (let i = 0; i < shapes.length; i++) {
+    if (shapes[i].type === 'circle') circleCount++
+  }
   
-  if (circles.length < 2) return
+  if (circleCount < 2) return
+  
+  // Pass shapes directly - computeTangentHull handles filtering internally
+  const circles = shapes as CircleShape[]
   
   const pathData = computeTangentHull(circles, order, globalStretch, closed, useStartPoint, useEndPoint, mirrorAxis)
   
@@ -146,16 +153,17 @@ function renderDebugInfo(
   // Scale factor for constant screen size
   const uiScale = 1 / zoom
   
-  // Filter segments by type
-  const arcs = segments.filter(s => s.type === 'arc') as ArcSegment[]
-  
-  // All "connector" segments (lines or beziers)
-  const connectors = segments.filter(s => s.type === 'line' || s.type === 'bezier') as (LineSegment | BezierSegment)[]
+  // Iterate segments inline instead of filtering (avoid GC)
+  // We'll check segment types in each loop that needs them
   
   // Tangent points
   if (debug.showTangentPoints) {
-    for (let i = 0; i < connectors.length; i++) {
-      const conn = connectors[i]
+    let connectorIndex = 0
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i]
+      if (seg.type !== 'line' && seg.type !== 'bezier') continue
+      
+      const conn = seg as LineSegment | BezierSegment
       
       // Start point = green (exit point from source circle)
       ctx.fillStyle = '#00ff00'
@@ -197,9 +205,11 @@ function renderDebugInfo(
         ctx.font = `${fontSize}px monospace`
         ctx.fillStyle = '#ffffff'
         const prefix = conn.type === 'bezier' ? 'B' : 'L'
-        ctx.fillText(`${prefix}${i}s`, conn.start.x + 8 * uiScale, conn.start.y - 8 * uiScale)
-        ctx.fillText(`${prefix}${i}e`, conn.end.x + 8 * uiScale, conn.end.y + 12 * uiScale)
+        ctx.fillText(`${prefix}${connectorIndex}s`, conn.start.x + 8 * uiScale, conn.start.y - 8 * uiScale)
+        ctx.fillText(`${prefix}${connectorIndex}e`, conn.end.x + 8 * uiScale, conn.end.y + 12 * uiScale)
       }
+      
+      connectorIndex++
     }
   }
   
@@ -207,15 +217,19 @@ function renderDebugInfo(
   if (debug.showArcAngles) {
     const fontSize = Math.round(10 * uiScale)
     ctx.font = `${fontSize}px monospace`
-    for (let i = 0; i < arcs.length; i++) {
-      const arc = arcs[i]
+    let arcIndex = 0
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i]
+      if (seg.type !== 'arc') continue
+      
+      const arc = seg as ArcSegment
       const midAngle = (arc.startAngle + arc.endAngle) / 2
       const labelOffset = PATH_LABEL_OFFSET * uiScale
       const labelX = arc.center.x + (arc.radius + labelOffset) * Math.cos(midAngle)
       const labelY = arc.center.y + (arc.radius + labelOffset) * Math.sin(midAngle)
       
       ctx.fillStyle = '#ffff00'
-      ctx.fillText(`A${i}`, labelX, labelY)
+      ctx.fillText(`A${arcIndex}`, labelX, labelY)
       
       // Draw angle indicators
       ctx.strokeStyle = '#ffff0066'
@@ -238,6 +252,8 @@ function renderDebugInfo(
       // Direction indicator
       ctx.fillStyle = arc.counterclockwise ? '#ff00ff' : '#00ffff'
       ctx.fillText(arc.counterclockwise ? 'CCW' : 'CW', arc.center.x - 10 * uiScale, arc.center.y)
+      
+      arcIndex++
     }
   }
   
@@ -286,12 +302,20 @@ function renderDebugInfo(
     const fontSize = Math.round(10 * uiScale)
     ctx.font = `bold ${fontSize}px monospace`
     
-    for (let i = 0; i < arcs.length; i++) {
-      const arc = arcs[i]
-      const circle = circles.find(c => 
-        Math.abs(c.center.x - arc.center.x) < 1 && 
-        Math.abs(c.center.y - arc.center.y) < 1
-      )
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i]
+      if (seg.type !== 'arc') continue
+      
+      const arc = seg as ArcSegment
+      // Find matching circle (inline to avoid filter)
+      let circle: CircleShape | undefined
+      for (let j = 0; j < circles.length; j++) {
+        const c = circles[j]
+        if (Math.abs(c.center.x - arc.center.x) < 1 && Math.abs(c.center.y - arc.center.y) < 1) {
+          circle = c
+          break
+        }
+      }
       
       // Entry point (startAngle) - BLUE
       const entryPt = pointOnCircle(arc.center, arc.radius, arc.startAngle)
