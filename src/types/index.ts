@@ -134,7 +134,7 @@ export interface DragState {
 }
 
 // Settings types
-export type MeasurementMode = 'clean' | 'minimal' | 'detailed'
+export type MeasurementMode = 'clean' | 'detailed'
 
 // File format types
 export interface SerpentineDocument {

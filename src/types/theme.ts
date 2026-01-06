@@ -25,6 +25,9 @@ export interface CanvasTheme {
   danger: string
   dangerDim: string
   
+  // Smart guides (alignment lines)
+  smartGuide: string
+  
   // Stroke weights (in CSS pixels, scaled by zoom)
   weights: {
     hairline: number       // 1px - guides, slots

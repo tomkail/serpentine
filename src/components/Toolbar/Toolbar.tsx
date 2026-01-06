@@ -1,7 +1,7 @@
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useDocumentStore } from '../../stores/documentStore'
 import { fitToView } from '../../utils/viewportActions'
-import { MagnetIcon, SmartGuidesIcon, EyeIcon, FrameIcon, LoopPathIcon, OpenPathIcon, StartPointIcon, EndPointIcon, VerticalAxisIcon, HorizontalAxisIcon } from '../icons/Icons'
+import { MagnetIcon, SmartGuidesIcon, EyeIcon, FrameIcon, LoopPathIcon, OpenPathIcon, StartPointIcon, EndPointIcon, VerticalAxisIcon, HorizontalAxisIcon, SvgPreviewIcon, RulerIcon } from '../icons/Icons'
 import { Tooltip } from '../Tooltip/Tooltip'
 import styles from './Toolbar.module.css'
 
@@ -14,6 +14,8 @@ export function Toolbar() {
   const cycleMeasurementMode = useSettingsStore(state => state.cycleMeasurementMode)
   const isolatePath = useSettingsStore(state => state.isolatePath)
   const setIsolatePath = useSettingsStore(state => state.setIsolatePath)
+  const showSvgPreview = useSettingsStore(state => state.showSvgPreview)
+  const toggleSvgPreview = useSettingsStore(state => state.toggleSvgPreview)
   
   // Path options
   const closedPath = useDocumentStore(state => state.closedPath)
@@ -116,10 +118,11 @@ export function Toolbar() {
         </Tooltip>
         <Tooltip text="Measurement mode" shortcut="M">
           <button
-            className={styles.toggle}
+            className={`${styles.iconToggle} ${measurementMode === 'detailed' ? styles.active : ''}`}
             onClick={cycleMeasurementMode}
+            aria-label={`Measurement mode: ${measurementMode}`}
           >
-            {measurementMode.charAt(0).toUpperCase() + measurementMode.slice(1)}
+            <RulerIcon size={20} />
           </button>
         </Tooltip>
         <Tooltip text="Hold to isolate" shortcut="I">
@@ -131,6 +134,18 @@ export function Toolbar() {
             aria-label={`Isolate path: ${isolatePath ? 'on' : 'off'}`}
           >
             <EyeIcon size={20} />
+          </button>
+        </Tooltip>
+        
+        <div className={styles.smallSeparator} />
+        
+        <Tooltip text="SVG preview window">
+          <button
+            className={`${styles.iconToggle} ${showSvgPreview ? styles.active : ''}`}
+            onClick={toggleSvgPreview}
+            aria-label={`SVG preview: ${showSvgPreview ? 'on' : 'off'}`}
+          >
+            <SvgPreviewIcon size={20} />
           </button>
         </Tooltip>
       </div>

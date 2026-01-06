@@ -220,7 +220,8 @@ export function useCanvasInteraction(
       tangentHandle: TangentHandleType
     } | null => {
       // Check edge first (outermost zone - for scaling)
-      if (isOnEdgeZone(shape, worldPos)) {
+      // Edge zone is disabled when circle is too small on screen
+      if (isOnEdgeZone(shape, worldPos, zoom)) {
         return { 
           shape, 
           hoverTarget: { type: 'shape-edge', shapeId: shape.id }, 

@@ -69,6 +69,10 @@ export const primitives = {
   red500: '#ef4444',
   red400: '#f87171',
   
+  // Pink/Magenta scale (guides, alignment)
+  pink500: '#FF3366',
+  pink400: '#FF5588',
+  
   // Theme-specific backgrounds
   warmGray950: '#0c0a09',
   warmGray900: '#1a1918',
@@ -119,6 +123,11 @@ export interface SemanticTokens {
     dangerMuted: string // Dimmed danger state
   }
   
+  // Guides (smart guides, alignment)
+  guide: {
+    line: string        // Smart guide line color
+  }
+  
   // Contrast pair (for double-stroke visibility)
   contrast: {
     light: string       // Light stroke for dark backgrounds
@@ -146,6 +155,9 @@ export const darkSemanticTokens: SemanticTokens = {
     danger: primitives.red500,
     dangerMuted: primitives.red400,
   },
+  guide: {
+    line: primitives.pink500,
+  },
   contrast: {
     light: primitives.white,
     dark: primitives.black,
@@ -171,6 +183,9 @@ export const lightSemanticTokens: SemanticTokens = {
   feedback: {
     danger: primitives.red600,
     dangerMuted: primitives.red500,
+  },
+  guide: {
+    line: primitives.pink500,
   },
   contrast: {
     light: primitives.white,
@@ -199,6 +214,9 @@ export const sunsetSemanticTokens: SemanticTokens = {
     danger: primitives.red500,
     dangerMuted: primitives.red400,
   },
+  guide: {
+    line: primitives.pink500,
+  },
   contrast: {
     light: primitives.white,
     dark: primitives.black,
@@ -225,6 +243,9 @@ export const forestSemanticTokens: SemanticTokens = {
   feedback: {
     danger: primitives.red500,
     dangerMuted: primitives.red400,
+  },
+  guide: {
+    line: primitives.pink500,
   },
   contrast: {
     light: primitives.white,
@@ -253,6 +274,9 @@ export const lavenderSemanticTokens: SemanticTokens = {
     danger: primitives.red500,
     dangerMuted: primitives.red400,
   },
+  guide: {
+    line: primitives.pink500,
+  },
   contrast: {
     light: primitives.white,
     dark: primitives.black,
@@ -280,6 +304,9 @@ export const oceanSemanticTokens: SemanticTokens = {
     danger: primitives.red500,
     dangerMuted: primitives.red400,
   },
+  guide: {
+    line: primitives.pink500,
+  },
   contrast: {
     light: primitives.white,
     dark: primitives.black,
@@ -306,6 +333,9 @@ export const amberSemanticTokens: SemanticTokens = {
   feedback: {
     danger: primitives.red500,
     dangerMuted: primitives.red400,
+  },
+  guide: {
+    line: primitives.pink500,
   },
   contrast: {
     light: primitives.white,
@@ -385,6 +415,9 @@ export function buildTheme(
     // Danger state
     danger: semantic.feedback.danger,
     dangerDim: semantic.feedback.dangerMuted,
+    
+    // Smart guides
+    smartGuide: semantic.guide.line,
     
     // Stroke weights (constant across themes)
     weights: {

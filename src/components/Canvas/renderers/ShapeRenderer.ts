@@ -28,6 +28,7 @@ export {
   getDirectionRingOpacity,
   areIndexDotsInteractable,
   isDirectionRingInteractable,
+  isScalingInteractable,
   type TangentHandleInfo,
   type TangentHandleType
 } from './hitTesting'
@@ -256,7 +257,7 @@ function renderCircle(
     const hoveredDotIndex = hoverTarget?.type === 'index-dot' && hoverTarget.shapeId === circle.id 
       ? hoverTarget.dotIndex 
       : null
-    drawIndexDotGrid(ctx, center, radius, shapeIndex, totalShapes, theme, zoom, isSelected, hoveredDotIndex)
+    drawIndexDotGrid(ctx, circle.id, center, radius, shapeIndex, totalShapes, theme, zoom, isSelected, hoveredDotIndex)
   }
   
   // Draw action row (mirror + delete icons) when selected, positioned below the circle
@@ -288,11 +289,11 @@ function drawDirectionRing(
   isGhost: boolean = false,
   isSelected: boolean = false
 ) {
-  const { center, radius, direction } = circle
+  const { center, radius, direction, id } = circle
   const pathGoesClockwise = (direction ?? 'cw') === 'cw'
   
-  // Calculate opacity based on zoom level and circle radius
-  const opacity = getDirectionRingOpacity(radius, zoom)
+  // Calculate animated opacity based on zoom threshold
+  const opacity = getDirectionRingOpacity(id, radius, zoom)
   if (opacity <= 0) return  // Fully faded out, skip rendering
   
   const uiScale = 1 / zoom
@@ -431,6 +432,7 @@ function drawActionRow(
  */
 function drawIndexDotGrid(
   ctx: CanvasRenderingContext2D,
+  circleId: string,
   center: Point,
   radius: number,
   index: number,
@@ -442,8 +444,8 @@ function drawIndexDotGrid(
 ) {
   if (total <= 0) return
   
-  // Calculate opacity based on zoom level, circle radius, and total shapes
-  const opacity = getIndexDotOpacity(radius, zoom, total)
+  // Calculate animated opacity based on zoom threshold
+  const opacity = getIndexDotOpacity(circleId, radius, zoom, total)
   if (opacity <= 0) return  // Fully faded out, skip rendering
   
   const uiScale = 1 / zoom

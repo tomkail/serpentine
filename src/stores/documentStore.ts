@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Shape, SerpentineDocument, CircleShape, MirrorAxis } from '../types'
 import { defaultPreset } from '../utils/presets'
+import { startMeasure, endMeasure } from '../utils/profiler'
 
 interface DocumentState {
   // State
@@ -102,11 +103,15 @@ export const useDocumentStore = create<DocumentState>()(
     (set, get) => ({
       ...createDefaultDocument(),
       
-      addShape: (shape) => set((state) => ({
-        shapes: [...state.shapes, shape],
-        shapeOrder: [...state.shapeOrder, shape.id],
-        isDirty: true
-      })),
+      addShape: (shape) => {
+        startMeasure('addShape')
+        set((state) => ({
+          shapes: [...state.shapes, shape],
+          shapeOrder: [...state.shapeOrder, shape.id],
+          isDirty: true
+        }))
+        endMeasure('addShape')
+      },
       
       insertShapeAt: (shape, orderIndex) => set((state) => {
         const newOrder = [...state.shapeOrder]
@@ -209,9 +214,13 @@ export const useDocumentStore = create<DocumentState>()(
       })),
       
       duplicateShape: (id) => {
+        startMeasure('duplicateShape')
         const state = get()
         const shape = state.shapes.find(s => s.id === id)
-        if (!shape) return
+        if (!shape) {
+          endMeasure('duplicateShape')
+          return
+        }
         
         const newShape: Shape = {
           ...shape,
@@ -228,6 +237,7 @@ export const useDocumentStore = create<DocumentState>()(
           shapeOrder: [...state.shapeOrder, newShape.id],
           isDirty: true
         })
+        endMeasure('duplicateShape')
       },
       
       toggleDirection: (id) => set((state) => ({
@@ -272,10 +282,13 @@ export const useDocumentStore = create<DocumentState>()(
       
       reset: () => set(createDefaultDocument()),
       
-      loadDocument: (data) => set({
+      loadDocument: (data) => {
+        startMeasure('loadDocument', { shapes: data.shapes.length })
+        
+        startMeasure('migrateShapes')
         // Ensure backwards compatibility and migrate old formats
         // Stretch is left as undefined if not specified (inherits from global)
-        shapes: data.shapes.map(shape => {
+        const migratedShapes = data.shapes.map(shape => {
           // Cast to unknown first for backwards compatibility with old file formats
           const legacyShape = shape as unknown as Record<string, unknown>
           const legacyStretch = legacyShape.fling as number | undefined
@@ -289,22 +302,33 @@ export const useDocumentStore = create<DocumentState>()(
             // Migrate: fling (0-1) maps to stretch (0-1), tension (0-1) maps to stretch (1-0)
             stretch: shape.stretch ?? legacyStretch ?? (legacyTension !== undefined ? 1 - legacyTension : undefined)
           } as CircleShape
-        }),
-        shapeOrder: data.pathOrder,
+        })
+        endMeasure('migrateShapes')
+        
         // Migrate old settings to globalStretch
-        globalStretch: (() => {
+        const globalStretch = (() => {
           const settings = data.settings as unknown as Record<string, unknown> | undefined
           if (settings?.globalStretch !== undefined) return settings.globalStretch as number
           if (settings?.globalFling !== undefined) return settings.globalFling as number
           if (settings?.globalTension !== undefined) return 1 - (settings.globalTension as number)
           return 0
-        })(),
-        closedPath: data.settings?.closedPath ?? true,  // Default to closed for backwards compatibility
-        useStartPoint: data.settings?.useStartPoint ?? true,  // Default to true for backwards compatibility
-        useEndPoint: data.settings?.useEndPoint ?? true,  // Default to true for backwards compatibility
-        fileName: data.name,
-        isDirty: false
-      }),
+        })()
+        
+        startMeasure('setState')
+        set({
+          shapes: migratedShapes,
+          shapeOrder: data.pathOrder,
+          globalStretch,
+          closedPath: data.settings?.closedPath ?? true,  // Default to closed for backwards compatibility
+          useStartPoint: data.settings?.useStartPoint ?? true,  // Default to true for backwards compatibility
+          useEndPoint: data.settings?.useEndPoint ?? true,  // Default to true for backwards compatibility
+          fileName: data.name,
+          isDirty: false
+        })
+        endMeasure('setState')
+        
+        endMeasure('loadDocument')
+      },
       
       setFileName: (name) => set({ fileName: name }),
       

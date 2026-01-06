@@ -129,7 +129,7 @@ export function useKeyboardShortcuts() {
       // Cycle measurement mode
       if (e.key === 'm' && !isMod) {
         cycleMeasurementMode()
-        const modes = ['clean', 'minimal', 'detailed']
+        const modes = ['clean', 'detailed']
         const currentIndex = modes.indexOf(measurementMode)
         const nextMode = modes[(currentIndex + 1) % modes.length]
         info(`Measurements: ${nextMode}`)

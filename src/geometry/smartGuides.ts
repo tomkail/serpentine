@@ -56,7 +56,7 @@ function getCircleAlignmentPoints(circle: CircleShape): {
 }
 
 /**
- * Compute smart guides for dragged circles against other circles
+ * Compute smart guides for dragged circles against other circles and the origin
  * 
  * @param draggedCircles - Circles currently being dragged
  * @param otherCircles - All other circles to check alignment against
@@ -78,8 +78,80 @@ export function computeSmartGuides(
   let minDistX = threshold
   let minDistY = threshold
   
+  // Origin point for alignment
+  const origin: Point = { x: 0, y: 0 }
+  
   for (const dragged of draggedCircles) {
     const draggedPoints = getCircleAlignmentPoints(dragged)
+    
+    // Check alignment with origin (0, 0)
+    // Vertical alignment (x = 0)
+    const xOriginAlignments: Array<{ draggedType: AlignmentType; draggedVal: number }> = [
+      { draggedType: 'center', draggedVal: draggedPoints.centerX },
+      { draggedType: 'left', draggedVal: draggedPoints.left },
+      { draggedType: 'right', draggedVal: draggedPoints.right },
+    ]
+    
+    for (const align of xOriginAlignments) {
+      const dist = Math.abs(align.draggedVal - origin.x)
+      if (dist <= threshold) {
+        // Check if we already have a guide at this position
+        const existingGuide = guides.find(
+          g => g.axis === 'vertical' && Math.abs(g.position - origin.x) < 0.001
+        )
+        
+        if (!existingGuide) {
+          guides.push({
+            axis: 'vertical',
+            position: origin.x,
+            draggedType: align.draggedType,
+            targetType: 'center',
+            targetId: '__origin__',
+            targetPoint: origin,
+          })
+        }
+        
+        if (dist < minDistX) {
+          minDistX = dist
+          snapOffsetX = origin.x - align.draggedVal
+          foundSnapX = true
+        }
+      }
+    }
+    
+    // Horizontal alignment (y = 0)
+    const yOriginAlignments: Array<{ draggedType: AlignmentType; draggedVal: number }> = [
+      { draggedType: 'center', draggedVal: draggedPoints.centerY },
+      { draggedType: 'top', draggedVal: draggedPoints.top },
+      { draggedType: 'bottom', draggedVal: draggedPoints.bottom },
+    ]
+    
+    for (const align of yOriginAlignments) {
+      const dist = Math.abs(align.draggedVal - origin.y)
+      if (dist <= threshold) {
+        // Check if we already have a guide at this position
+        const existingGuide = guides.find(
+          g => g.axis === 'horizontal' && Math.abs(g.position - origin.y) < 0.001
+        )
+        
+        if (!existingGuide) {
+          guides.push({
+            axis: 'horizontal',
+            position: origin.y,
+            draggedType: align.draggedType,
+            targetType: 'center',
+            targetId: '__origin__',
+            targetPoint: origin,
+          })
+        }
+        
+        if (dist < minDistY) {
+          minDistY = dist
+          snapOffsetY = origin.y - align.draggedVal
+          foundSnapY = true
+        }
+      }
+    }
     
     for (const target of otherCircles) {
       // Skip if target is one of the dragged circles

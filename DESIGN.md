@@ -341,8 +341,7 @@ Three display modes (cycle with `M`):
 | Mode | Displays |
 |------|----------|
 | **Clean** | Shapes and path only |
-| **Minimal** | Shape radii + total path length |
-| **Detailed** | All segment lengths, coordinates, arc lengths |
+| **Detailed** | Shape radii + all segment lengths |
 
 Measurement style:
 - Monospace font
@@ -578,7 +577,7 @@ interface SelectionState {
 interface SettingsState {
   snapToGrid: boolean
   gridSize: number
-  measurementMode: 'clean' | 'minimal' | 'detailed'
+  measurementMode: 'clean' | 'detailed'
 }
 ```
 

@@ -79,13 +79,22 @@ export const MAX_DOT_COLS = 4                // Maximum dots per row
 // UI ELEMENT VISIBILITY (fade out when zoomed out)
 // ============================================================================
 
-// Elements fade out when their screen size exceeds this fraction of the circle's screen diameter
-export const UI_FADE_START_RATIO = 0.25      // Start fading at 25% of circle size
-export const UI_FADE_END_RATIO = 0.5         // Fully hidden at 50% of circle size
+// Elements fade at a threshold with a time-based animation (150ms)
+// The threshold is when screen size of element exceeds this fraction of circle diameter
+
+// Index dots fade out earlier (more sensitive to zoom)
+export const INDEX_DOT_FADE_THRESHOLD = 0.20  // Threshold at 20% of circle size
+
+// Direction ring fades out later (less sensitive) - stays visible longer
+export const DIRECTION_RING_FADE_THRESHOLD = 0.50  // Threshold at 50% of circle size
 
 // The direction ring spans a large visual area (many chevrons around the circle)
 // This multiplier accounts for the visual density of the ring
 export const DIRECTION_RING_SIZE_MULTIPLIER = 3
+
+// Minimum circle diameter in screen pixels to allow scaling interaction
+// Below this size, the edge zone becomes too small to reliably click
+export const MIN_SCALE_SCREEN_DIAMETER = 40  // pixels
 
 // ============================================================================
 // DIRECTION RING CHEVRONS

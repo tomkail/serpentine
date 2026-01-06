@@ -5,14 +5,13 @@ import type { Point } from '../../../types'
  * Smart Guides Renderer
  * 
  * Draws alignment guide lines when dragging circles.
- * Lines are red (like Figma) and extend across the entire visible canvas area.
+ * Lines extend across the entire visible canvas area.
  * X markers are drawn at the target alignment points.
  */
 
-// Guide line styling
-const GUIDE_COLOR = '#FF3366'  // Bright red/pink like Figma
-const GUIDE_LINE_WIDTH = 1      // Thin line in screen pixels
-const MARKER_SIZE = 5           // X marker size in screen pixels
+// Guide line styling (sizes in screen pixels)
+const GUIDE_LINE_WIDTH = 1
+const MARKER_SIZE = 5
 
 /**
  * Draw an X marker at the specified position
@@ -40,6 +39,7 @@ function drawXMarker(
  * @param canvasHeight - Canvas height in screen pixels
  * @param pan - Current viewport pan offset
  * @param zoom - Current viewport zoom level
+ * @param guideColor - Color for guide lines from theme
  */
 export function renderSmartGuides(
   ctx: CanvasRenderingContext2D,
@@ -47,7 +47,8 @@ export function renderSmartGuides(
   canvasWidth: number,
   canvasHeight: number,
   pan: Point,
-  zoom: number
+  zoom: number,
+  guideColor: string
 ): void {
   if (guides.length === 0) return
   
@@ -66,7 +67,7 @@ export function renderSmartGuides(
   const markerLineWidth = 1.5 / zoom
   
   ctx.save()
-  ctx.strokeStyle = GUIDE_COLOR
+  ctx.strokeStyle = guideColor
   ctx.lineCap = 'round'
   
   // Draw each guide line

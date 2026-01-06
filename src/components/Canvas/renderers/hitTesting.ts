@@ -21,10 +21,12 @@ import {
   SLOT_TOLERANCE_FACTOR,
   TANGENT_DISTANCE_FACTOR,
   CHEVRON_MAX_SCREEN_SIZE,
-  UI_FADE_START_RATIO,
-  UI_FADE_END_RATIO,
-  DIRECTION_RING_SIZE_MULTIPLIER
+  INDEX_DOT_FADE_THRESHOLD,
+  DIRECTION_RING_FADE_THRESHOLD,
+  DIRECTION_RING_SIZE_MULTIPLIER,
+  MIN_SCALE_SCREEN_DIAMETER
 } from '../../../constants'
+import { getAnimatedOpacity } from './opacityAnimation'
 
 // ============================================================================
 // UI ELEMENT VISIBILITY (fade based on zoom)
@@ -98,11 +100,10 @@ function calculateDotGridWidth(total: number): number {
 }
 
 /**
- * Calculate the opacity for index dots based on zoom level and circle radius
- * Dots fade out when the dot grid becomes larger than 50% of the circle's visual size
- * Returns a value from 0 (invisible) to 1 (fully visible)
+ * Check if index dots should be visible based on threshold
+ * Returns true/false based on whether the dot grid is too large relative to circle
  */
-export function getIndexDotOpacity(radius: number, zoom: number, totalShapes: number = MAX_DOT_COLS): number {
+export function shouldShowIndexDots(radius: number, zoom: number, totalShapes: number = MAX_DOT_COLS): boolean {
   // Dot grid width in screen pixels (constant, doesn't change with zoom)
   const gridWidthScreen = calculateDotGridWidth(totalShapes)
   // Circle diameter in screen pixels: 2 * radius * zoom
@@ -110,48 +111,66 @@ export function getIndexDotOpacity(radius: number, zoom: number, totalShapes: nu
   // Ratio of grid size to circle size
   const ratio = gridWidthScreen / circleDiameterScreen
   
-  // Fade from fully visible to invisible as ratio goes from START to END
-  if (ratio <= UI_FADE_START_RATIO) return 1
-  if (ratio >= UI_FADE_END_RATIO) return 0
-  
-  // Linear interpolation between thresholds
-  return 1 - (ratio - UI_FADE_START_RATIO) / (UI_FADE_END_RATIO - UI_FADE_START_RATIO)
+  // Binary threshold - visible if ratio is below threshold
+  return ratio <= INDEX_DOT_FADE_THRESHOLD
 }
 
 /**
- * Calculate the opacity for direction ring (chevrons) based on zoom level and circle radius
- * Direction arrows fade out when they become too prominent relative to the circle
- * The multiplier accounts for the visual density of many chevrons around the ring
- * Returns a value from 0 (invisible) to 1 (fully visible)
+ * Get animated opacity for index dots
+ * Uses threshold to determine target, but animates smoothly over time
+ * 
+ * @param circleId Unique ID for the circle (for animation tracking)
+ * @param radius Circle radius
+ * @param zoom Current zoom level
+ * @param totalShapes Total number of shapes (for dot grid calculation)
  */
-export function getDirectionRingOpacity(radius: number, zoom: number): number {
+export function getIndexDotOpacity(circleId: string, radius: number, zoom: number, totalShapes: number = MAX_DOT_COLS): number {
+  const shouldShow = shouldShowIndexDots(radius, zoom, totalShapes)
+  return getAnimatedOpacity(`indexDots_${circleId}`, shouldShow)
+}
+
+/**
+ * Check if direction ring should be visible based on threshold
+ * Returns true/false based on whether chevrons are too large relative to circle
+ */
+export function shouldShowDirectionRing(radius: number, zoom: number): boolean {
   // Effective size accounts for the visual density of the chevron ring
-  // The ring has many chevrons so it appears larger than individual chevron size
   const effectiveSize = CHEVRON_MAX_SCREEN_SIZE * DIRECTION_RING_SIZE_MULTIPLIER
   // Circle diameter in screen pixels: 2 * radius * zoom
   const circleDiameterScreen = 2 * radius * zoom
   const ratio = effectiveSize / circleDiameterScreen
   
-  // Fade from fully visible to invisible as ratio goes from START to END
-  if (ratio <= UI_FADE_START_RATIO) return 1
-  if (ratio >= UI_FADE_END_RATIO) return 0
-  
-  // Linear interpolation between thresholds
-  return 1 - (ratio - UI_FADE_START_RATIO) / (UI_FADE_END_RATIO - UI_FADE_START_RATIO)
+  // Binary threshold - visible if ratio is below threshold
+  return ratio <= DIRECTION_RING_FADE_THRESHOLD
+}
+
+/**
+ * Get animated opacity for direction ring (chevrons)
+ * Uses threshold to determine target, but animates smoothly over time
+ * 
+ * @param circleId Unique ID for the circle (for animation tracking)
+ * @param radius Circle radius
+ * @param zoom Current zoom level
+ */
+export function getDirectionRingOpacity(circleId: string, radius: number, zoom: number): number {
+  const shouldShow = shouldShowDirectionRing(radius, zoom)
+  return getAnimatedOpacity(`directionRing_${circleId}`, shouldShow)
 }
 
 /**
  * Check if index dots are interactable at current zoom/radius
+ * Uses the threshold check (not animated opacity) for consistent hit testing
  */
 export function areIndexDotsInteractable(radius: number, zoom: number, totalShapes: number = MAX_DOT_COLS): boolean {
-  return getIndexDotOpacity(radius, zoom, totalShapes) > 0
+  return shouldShowIndexDots(radius, zoom, totalShapes)
 }
 
 /**
  * Check if direction ring is interactable at current zoom/radius
+ * Uses the threshold check (not animated opacity) for consistent hit testing
  */
 export function isDirectionRingInteractable(radius: number, zoom: number): boolean {
-  return getDirectionRingOpacity(radius, zoom) > 0
+  return shouldShowDirectionRing(radius, zoom)
 }
 
 // ============================================================================
@@ -159,14 +178,31 @@ export function isDirectionRingInteractable(radius: number, zoom: number): boole
 // ============================================================================
 
 /**
+ * Check if scaling is available for a circle at current zoom level
+ * Returns false when the circle is too small on screen to reliably scale
+ */
+export function isScalingInteractable(radius: number, zoom: number): boolean {
+  const screenDiameter = 2 * radius * zoom
+  return screenDiameter >= MIN_SCALE_SCREEN_DIAMETER
+}
+
+/**
  * Check if a point is in the edge/scale zone (proportional to radius)
  * Zone is between EDGE_INNER and EDGE_OUTER of radius
+ * Returns false if circle is too small on screen for scaling
  */
 export function isOnEdgeZone(
   circle: CircleShape,
-  point: Point
+  point: Point,
+  zoom: number = 1
 ): boolean {
   const { center, radius } = circle
+  
+  // Disable edge zone when circle is too small on screen
+  if (!isScalingInteractable(radius, zoom)) {
+    return false
+  }
+  
   const dx = point.x - center.x
   const dy = point.y - center.y
   const dist = Math.sqrt(dx * dx + dy * dy)
@@ -179,9 +215,11 @@ export function isOnEdgeZone(
 
 /**
  * Check if a point is in the body/move zone (inside direction ring)
- * When the direction ring is faded out, the body zone expands to include
- * the direction ring area, allowing users to move the circle by clicking
- * anywhere inside the edge zone.
+ * The body zone expands based on which zones are interactable:
+ * - When direction ring is faded: expands to DIRECTION_RING_OUTER (92%)
+ * - When scaling is disabled: expands to EDGE_OUTER (108%)
+ * This allows users to move the circle by clicking anywhere that's not
+ * actively used for another interaction.
  */
 export function isInBodyZone(
   circle: CircleShape,
@@ -193,11 +231,18 @@ export function isInBodyZone(
   const dy = point.y - center.y
   const dist = Math.sqrt(dx * dx + dy * dy)
   
-  // When direction ring is not interactable (faded out), expand body zone
-  // to include the direction ring area (up to DIRECTION_RING_OUTER)
-  const outerBoundary = isDirectionRingInteractable(radius, zoom)
-    ? DIRECTION_RING_INNER
-    : DIRECTION_RING_OUTER
+  // Determine outer boundary based on which zones are interactable
+  let outerBoundary: number
+  if (!isScalingInteractable(radius, zoom)) {
+    // Scaling disabled: body zone expands to include edge zone
+    outerBoundary = EDGE_OUTER
+  } else if (!isDirectionRingInteractable(radius, zoom)) {
+    // Direction ring faded: body zone expands to include direction ring area
+    outerBoundary = DIRECTION_RING_OUTER
+  } else {
+    // All zones active: body zone is just the inner area
+    outerBoundary = DIRECTION_RING_INNER
+  }
   
   return dist < radius * outerBoundary
 }

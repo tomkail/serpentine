@@ -14,9 +14,11 @@ import { renderMeasurements } from './renderers/MeasurementRenderer'
 import { renderHandleValues } from './renderers/HandleValueRenderer'
 import { renderTooltips } from './renderers/TooltipRenderer'
 import { renderSmartGuides } from './renderers/SmartGuidesRenderer'
+import { hasActiveAnimations } from './renderers/opacityAnimation'
 import { drawPlusIconCanvas } from '../icons/Icons'
 import { reportError } from '../../stores/notificationStore'
 import { fitToView } from '../../utils/viewportActions'
+import { startMeasure, endMeasure, markFrame, getFPS, getAvgFrameTime, isProfilerEnabled } from '../../utils/profiler'
 import styles from './Canvas.module.css'
 
 export function Canvas() {
@@ -54,6 +56,9 @@ export function Canvas() {
     showCircleCenters: state.showCircleCenters,
   }))
   
+  // Profiling state
+  const showPerformanceOverlay = useDebugStore(state => state.showPerformanceOverlay)
+  
   // Canvas interaction hook
   useCanvasInteraction(canvasRef, containerRef)
   
@@ -69,11 +74,17 @@ export function Canvas() {
     const ctx = canvas?.getContext('2d')
     if (!canvas || !ctx) return
     
+    // Mark frame for FPS tracking
+    markFrame()
+    startMeasure('Canvas.render', { shapes: shapes.length })
+    
     try {
       // Clear canvas with background
+      startMeasure('clear')
       // In isolate mode, use a clean neutral background instead of theme background
       ctx.fillStyle = isolatePath ? '#000000' : theme.background
       ctx.fillRect(0, 0, canvas.width, canvas.height)
+      endMeasure('clear')
       
       // Save context and apply viewport transform
       ctx.save()
@@ -82,26 +93,34 @@ export function Canvas() {
       
       // In isolate mode, only render the path - skip everything else
       if (isolatePath) {
-        // Path only
+        startMeasure('path (isolated)')
         renderPath(ctx, shapes, shapeOrder, zoom, globalStretch, closedPath, useStartPoint, useEndPoint, theme.pathStroke, mirrorAxis)
+        endMeasure('path (isolated)')
         ctx.restore()
         lastRenderErrorRef.current = null
+        endMeasure('Canvas.render')
         return
       }
       
       // Render layers (back to front)
       if (showGrid) {
+        startMeasure('grid')
         renderGrid(ctx, canvas.width, canvas.height, pan, zoom, gridSize, theme.gridColor)
+        endMeasure('grid')
       }
       
       // Draw mirror axis if any circle has mirroring enabled
       const hasMirroredCircles = shapes.some(s => s.type === 'circle' && s.mirrored)
       if (hasMirroredCircles) {
+        startMeasure('mirrorAxis')
         renderMirrorAxis(ctx, canvas.width, canvas.height, pan, zoom, theme.gridColor, mirrorAxis)
+        endMeasure('mirrorAxis')
       }
       
       // Shapes first (below path)
+      startMeasure('shapes')
       renderShapes(ctx, shapes, selectedIds, hoveredId, hoverTarget, theme, zoom, shapeOrder, mirrorAxis)
+      endMeasure('shapes')
       
       // Click preview circle (semi-transparent hint for double-click)
       // Animated: fades in over first 10%, fades out over last 50%
@@ -139,15 +158,19 @@ export function Canvas() {
       }
       
       // Path on top of shapes
+      startMeasure('path')
       renderPath(ctx, shapes, shapeOrder, zoom, globalStretch, closedPath, useStartPoint, useEndPoint, theme.pathStroke, mirrorAxis)
+      endMeasure('path')
       
       // Smart guides during drag operations
       if (dragState?.mode === 'move' && activeGuides.length > 0) {
-        renderSmartGuides(ctx, activeGuides, canvas.width, canvas.height, pan, zoom)
+        renderSmartGuides(ctx, activeGuides, canvas.width, canvas.height, pan, zoom, theme.smartGuide)
       }
       
       // Tangent handles on top of path (for selected circles)
+      startMeasure('handles')
       renderSelectedTangentHandles(ctx, shapes, selectedIds, hoverTarget, shapeOrder, theme, zoom, closedPath, useStartPoint, useEndPoint, mirrorAxis)
+      endMeasure('handles')
       
       // Handle value labels (for hovered/dragged handles)
       renderHandleValues(
@@ -186,7 +209,9 @@ export function Canvas() {
       
       // Measurements on top of everything
       if (measurementMode !== 'clean') {
+        startMeasure('measurements')
         renderMeasurements(ctx, shapes, shapeOrder, measurementMode, zoom, closedPath, useStartPoint, useEndPoint, mirrorAxis)
+        endMeasure('measurements')
       }
       
       // Marquee selection rectangle (rendered last, on top of everything)
@@ -212,6 +237,11 @@ export function Canvas() {
       
       ctx.restore()
       
+      // Draw performance overlay if enabled
+      if (showPerformanceOverlay && isProfilerEnabled()) {
+        drawPerformanceOverlay(ctx, canvas.width, canvas.height)
+      }
+      
       // Clear error state on successful render
       lastRenderErrorRef.current = null
     } catch (error) {
@@ -224,7 +254,42 @@ export function Canvas() {
         reportError(error, 'Canvas render error')
       }
     }
-  }, [shapes, shapeOrder, globalStretch, closedPath, useStartPoint, useEndPoint, mirrorAxis, pan, zoom, selectedIds, hoveredId, hoverTarget, dragState, clickPreview, activeGuides, gridSize, showGrid, measurementMode, isolatePath, debugSettings, theme])
+    
+    endMeasure('Canvas.render')
+  }, [shapes, shapeOrder, globalStretch, closedPath, useStartPoint, useEndPoint, mirrorAxis, pan, zoom, selectedIds, hoveredId, hoverTarget, dragState, clickPreview, activeGuides, gridSize, showGrid, measurementMode, isolatePath, debugSettings, theme, showPerformanceOverlay])
+  
+  // Helper to draw performance overlay
+  function drawPerformanceOverlay(ctx: CanvasRenderingContext2D, width: number, _height: number) {
+    const dpr = window.devicePixelRatio || 1
+    const padding = 12 * dpr
+    const lineHeight = 16 * dpr
+    const fontSize = 12 * dpr
+    
+    const fps = getFPS()
+    const frameTime = getAvgFrameTime()
+    
+    // Background
+    ctx.save()
+    ctx.setTransform(1, 0, 0, 1, 0, 0) // Reset transform to screen space
+    
+    const boxWidth = 140 * dpr
+    const boxHeight = 60 * dpr
+    const x = width - boxWidth - padding
+    const y = padding
+    
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)'
+    ctx.fillRect(x, y, boxWidth, boxHeight)
+    
+    ctx.font = `${fontSize}px monospace`
+    ctx.fillStyle = fps > 55 ? '#6bcb77' : fps > 30 ? '#ffd93d' : '#ff6b6b'
+    ctx.fillText(`FPS: ${fps.toFixed(1)}`, x + 8 * dpr, y + lineHeight)
+    
+    ctx.fillStyle = '#ffffff'
+    ctx.fillText(`Frame: ${frameTime.toFixed(2)}ms`, x + 8 * dpr, y + lineHeight * 2)
+    ctx.fillText(`Shapes: ${shapes.length}`, x + 8 * dpr, y + lineHeight * 3)
+    
+    ctx.restore()
+  }
   
   // Store canvas dimensions
   const setCanvasDimensions = useCanvasStore(state => state.setDimensions)
@@ -295,6 +360,31 @@ export function Canvas() {
       cancelAnimationFrame(animationId)
     }
   }, [clickPreview, render])
+  
+  // Animate opacity transitions (index dots and direction ring fade in/out)
+  // Re-render while animations are in progress after zoom changes
+  useEffect(() => {
+    let animationId: number
+    let isRunning = true
+    
+    const animate = () => {
+      if (!isRunning) return
+      
+      render()
+      // Continue animation while there are active opacity transitions
+      if (hasActiveAnimations()) {
+        animationId = requestAnimationFrame(animate)
+      }
+    }
+    
+    // Start animation loop after zoom changes
+    animationId = requestAnimationFrame(animate)
+    
+    return () => {
+      isRunning = false
+      cancelAnimationFrame(animationId)
+    }
+  }, [zoom, render])
   
   return (
     <div ref={containerRef} className={styles.container}>

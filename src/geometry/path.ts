@@ -8,6 +8,7 @@ import {
   TANGENT_DISTANCE_FACTOR,
   DEFAULT_TANGENT_LENGTH
 } from '../constants'
+import { startMeasure, endMeasure } from '../utils/profiler'
 
 /**
  * Create a mirrored version of a circle across the specified axis
@@ -154,10 +155,14 @@ export function computeTangentHull(
   useEndPoint: boolean = true,
   mirrorAxis: MirrorAxis = 'vertical'
 ): PathData {
+  startMeasure('computeTangentHull', { circles: shapes.length })
+  
   const segments: (LineSegment | BezierSegment | ArcSegment | EllipseArcSegment)[] = []
   
   // Expand shapes to include mirrored circles
+  startMeasure('expandMirror')
   const { expandedShapes, expandedOrder } = expandMirroredCircles(shapes, order, mirrorAxis)
+  endMeasure('expandMirror')
   
   // Build lookup map for O(1) access
   const shapeMap = new Map(expandedShapes.map(s => [s.id, s]))
@@ -168,6 +173,7 @@ export function computeTangentHull(
     .filter((s): s is CircleShape => s !== undefined && s.type === 'circle')
   
   if (orderedCircles.length < 2) {
+    endMeasure('computeTangentHull')
     return { segments: [], totalLength: 0 }
   }
   
@@ -176,6 +182,7 @@ export function computeTangentHull(
   // Compute all tangent lines between consecutive circles
   // For open paths, we always compute all n tangents (including wrap-around)
   // so that useStartPoint/useEndPoint can use them for arc calculations
+  startMeasure('computeTangents')
   const tangents: (TangentResult | null)[] = []
   
   for (let i = 0; i < n; i++) {
@@ -193,6 +200,7 @@ export function computeTangentHull(
     
     tangents.push(tangent)
   }
+  endMeasure('computeTangents')
   
   // Note: We no longer bail out early when some tangents are null.
   // Instead, we handle invalid tangents gracefully in the main loop,
@@ -453,6 +461,7 @@ export function computeTangentHull(
     }
   }
   
+  endMeasure('computeTangentHull')
   return { segments, totalLength }
 }
 

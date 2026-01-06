@@ -1,0 +1,256 @@
+.floatingWindow {
+  position: absolute;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 180px;
+  min-height: 140px;
+  z-index: 100;
+  backdrop-filter: blur(12px);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--panel-item-bg);
+  border-bottom: 1px solid var(--panel-border);
+  cursor: grab;
+  user-select: none;
+}
+
+.header:active {
+  cursor: grabbing;
+}
+
+.title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.closeButton {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: background 0.1s, color 0.1s;
+}
+
+.closeButton:hover {
+  background: var(--overlay-medium);
+  color: var(--text-primary);
+}
+
+.content {
+  flex: 1;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.svgContainer {
+  flex: 1;
+  background: var(--panel-item-bg);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--panel-border);
+  min-height: 0;
+  overflow: hidden;
+  padding: 8px;
+}
+
+.svgPreview {
+  width: 100%;
+  height: 100%;
+  color: var(--text-primary);
+  overflow: visible;
+}
+
+.svgEmpty {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 12px;
+}
+
+/* Stroke width slider */
+.sliderRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--panel-border);
+  overflow: hidden;
+}
+
+.sliderLabel {
+  font-size: 10px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.slider {
+  flex: 1;
+  min-width: 0;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--panel-border);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--text-primary);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  background: var(--accent-color);
+}
+
+.slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--text-primary);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.sliderValue {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  min-width: 24px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Resize handles */
+.resizeHandle {
+  position: absolute;
+  background: transparent;
+}
+
+.resizeN {
+  top: -4px;
+  left: 8px;
+  right: 8px;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.resizeS {
+  bottom: -4px;
+  left: 8px;
+  right: 8px;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.resizeE {
+  right: -4px;
+  top: 8px;
+  bottom: 8px;
+  width: 8px;
+  cursor: ew-resize;
+}
+
+.resizeW {
+  left: -4px;
+  top: 8px;
+  bottom: 8px;
+  width: 8px;
+  cursor: ew-resize;
+}
+
+.resizeNE {
+  top: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  cursor: nesw-resize;
+}
+
+.resizeNW {
+  top: -4px;
+  left: -4px;
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
+}
+
+.resizeSE {
+  bottom: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
+}
+
+.resizeSW {
+  bottom: -4px;
+  left: -4px;
+  width: 12px;
+  height: 12px;
+  cursor: nesw-resize;
+}
+
+/* Corner resize indicator */
+.resizeCorner {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+  opacity: 0.3;
+}
+
+.resizeCorner::before,
+.resizeCorner::after {
+  content: '';
+  position: absolute;
+  background: var(--text-muted);
+  border-radius: 1px;
+}
+
+.resizeCorner::before {
+  bottom: 0;
+  right: 0;
+  width: 10px;
+  height: 2px;
+}
+
+.resizeCorner::after {
+  bottom: 0;
+  right: 0;
+  width: 2px;
+  height: 10px;
+}
+

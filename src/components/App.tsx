@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Canvas } from './Canvas/Canvas'
-import { HierarchyPanel } from './HierarchyPanel/HierarchyPanel'
+import { FloatingPreview } from './FloatingPreview/FloatingPreview'
 import { MenuBar } from './MenuBar/MenuBar'
 import { Toolbar } from './Toolbar/Toolbar'
 import { Notifications } from './Notifications/Notifications'
@@ -27,7 +27,7 @@ function AppContent() {
         <ErrorBoundary>
           <Canvas />
         </ErrorBoundary>
-        <HierarchyPanel />
+        <FloatingPreview />
       </div>
       <Toolbar />
       <Notifications />

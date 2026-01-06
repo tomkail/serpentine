@@ -38,6 +38,14 @@ export function MenuBar() {
   const toggleArcDirection = useDebugStore(state => state.toggleArcDirection)
   const resetDebug = useDebugStore(state => state.resetDebug)
   
+  // Profiling state
+  const profilingEnabled = useDebugStore(state => state.profilingEnabled)
+  const showPerformanceOverlay = useDebugStore(state => state.showPerformanceOverlay)
+  const toggleProfiling = useDebugStore(state => state.toggleProfiling)
+  const togglePerformanceOverlay = useDebugStore(state => state.togglePerformanceOverlay)
+  const printProfilingReport = useDebugStore(state => state.printProfilingReport)
+  const clearProfilingDataAction = useDebugStore(state => state.clearProfilingData)
+  
   // Theme state
   const themeName = useThemeStore(state => state.themeName)
   const setTheme = useThemeStore(state => state.setTheme)
@@ -136,6 +144,27 @@ export function MenuBar() {
   
   const handleResetDebug = () => {
     resetDebug()
+    closeMenu()
+  }
+  
+  // Profiling handlers
+  const handleToggleProfiling = () => {
+    toggleProfiling()
+    closeMenu()
+  }
+  
+  const handleTogglePerformanceOverlay = () => {
+    togglePerformanceOverlay()
+    closeMenu()
+  }
+  
+  const handlePrintProfilingReport = () => {
+    printProfilingReport()
+    closeMenu()
+  }
+  
+  const handleClearProfilingData = () => {
+    clearProfilingDataAction()
     closeMenu()
   }
   
@@ -251,6 +280,29 @@ export function MenuBar() {
           <MenuItem 
             label={`${showArcDirection ? '✓ ' : '   '}Arc Direction`} 
             onClick={handleToggleArcDirection} 
+          />
+          <div style={{ height: 1, background: 'var(--menu-border)', margin: '4px 0' }} />
+          <div style={{ padding: '4px 12px', color: 'var(--text-muted)', fontSize: '11px' }}>
+            Performance
+          </div>
+          <MenuItem 
+            label={`${profilingEnabled ? '✓ ' : '   '}Enable Profiling`} 
+            onClick={handleToggleProfiling} 
+          />
+          <MenuItem 
+            label={`${showPerformanceOverlay ? '✓ ' : '   '}Show FPS Overlay`} 
+            onClick={handleTogglePerformanceOverlay}
+            disabled={!profilingEnabled}
+          />
+          <MenuItem 
+            label="Print Report to Console" 
+            onClick={handlePrintProfilingReport}
+            disabled={!profilingEnabled}
+          />
+          <MenuItem 
+            label="Clear Profiling Data" 
+            onClick={handleClearProfilingData}
+            disabled={!profilingEnabled}
           />
           <div style={{ height: 1, background: 'var(--menu-border)', margin: '4px 0' }} />
           <MenuItem label="Hide All Debug" onClick={handleResetDebug} />

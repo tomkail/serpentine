@@ -372,6 +372,70 @@ export function SmartGuidesIcon({ size = 16, className, color = 'currentColor' }
 }
 
 /**
+ * SVG Preview Icon - Document with path preview
+ */
+export function SvgPreviewIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
+  return (
+    <svg 
+      width={size} 
+      height={size} 
+      viewBox="0 0 16 16" 
+      fill="none" 
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Document outline */}
+      <rect x="2" y="1" width="12" height="14" rx="1.5" stroke={color} strokeWidth="1.5" fill="none" />
+      {/* SVG path preview - simple curve */}
+      <path 
+        d="M5 10C5 7 7 5 8 5C9 5 11 7 11 10" 
+        stroke={color} 
+        strokeWidth="1.5" 
+        strokeLinecap="round"
+        fill="none"
+      />
+    </svg>
+  )
+}
+
+/**
+ * Ruler Icon - Diagonal ruler with tick marks
+ * For measurement mode toggle
+ */
+export function RulerIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
+  return (
+    <svg 
+      width={size} 
+      height={size} 
+      viewBox="0 0 16 16" 
+      fill="none" 
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Ruler body - angled rectangle */}
+      <rect 
+        x="1.5" 
+        y="8.5" 
+        width="12" 
+        height="4" 
+        rx="0.5"
+        transform="rotate(-45 1.5 8.5)"
+        stroke={color} 
+        strokeWidth="1.5" 
+        fill="none"
+      />
+      {/* Tick marks along the ruler */}
+      <path 
+        d="M4.5 6.5L5.5 7.5M6.5 4.5L7.5 5.5M8.5 2.5L10 4M10.5 4.5L11.5 5.5" 
+        stroke={color} 
+        strokeWidth="1.25" 
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+/**
  * Frame/Fit Icon - Corner brackets framing a rectangle
  */
 export function FrameIcon({ size = 16, className, color = 'currentColor' }: IconProps) {

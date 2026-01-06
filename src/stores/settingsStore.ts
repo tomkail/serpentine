@@ -11,6 +11,7 @@ interface SettingsState {
   measurementMode: MeasurementMode
   showGrid: boolean
   isolatePath: boolean  // When true, only show path (hide circles, grid, background)
+  showSvgPreview: boolean  // Show/hide floating SVG preview window
   
   // Actions
   toggleSnap: () => void
@@ -22,9 +23,11 @@ interface SettingsState {
   setMeasurementMode: (mode: MeasurementMode) => void
   toggleGrid: () => void
   setIsolatePath: (enabled: boolean) => void
+  toggleSvgPreview: () => void
+  setShowSvgPreview: (enabled: boolean) => void
 }
 
-const MEASUREMENT_MODES: MeasurementMode[] = ['clean', 'minimal', 'detailed']
+const MEASUREMENT_MODES: MeasurementMode[] = ['clean', 'detailed']
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
@@ -32,9 +35,10 @@ export const useSettingsStore = create<SettingsState>()(
       snapToGrid: true,
       smartGuides: true,
       gridSize: DEFAULT_GRID_SIZE,
-      measurementMode: 'minimal',
+      measurementMode: 'detailed',
       showGrid: true,
       isolatePath: false,
+      showSvgPreview: true,
       
       toggleSnap: () => set((state) => ({
         snapToGrid: !state.snapToGrid
@@ -64,7 +68,13 @@ export const useSettingsStore = create<SettingsState>()(
         showGrid: !state.showGrid
       })),
       
-      setIsolatePath: (enabled) => set({ isolatePath: enabled })
+      setIsolatePath: (enabled) => set({ isolatePath: enabled }),
+      
+      toggleSvgPreview: () => set((state) => ({
+        showSvgPreview: !state.showSvgPreview
+      })),
+      
+      setShowSvgPreview: (enabled) => set({ showSvgPreview: enabled })
     }),
     {
       name: 'serpentine-settings',
@@ -74,7 +84,8 @@ export const useSettingsStore = create<SettingsState>()(
         smartGuides: state.smartGuides,
         gridSize: state.gridSize,
         measurementMode: state.measurementMode,
-        showGrid: state.showGrid
+        showGrid: state.showGrid,
+        showSvgPreview: state.showSvgPreview
       })
     }
   )
