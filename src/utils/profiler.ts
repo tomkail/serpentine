@@ -377,7 +377,6 @@ function logMeasurement(measurement: ProfileMeasurement): void {
   
   // Check for spike and add context
   const isSpike = measurement.duration > SPIKE_THRESHOLD_MS
-  const memInfo = getMemoryUsageMB()
   const gcTime = getTimeSinceLastGC()
   
   let spikeHint = ''
