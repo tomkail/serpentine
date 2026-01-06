@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useDocumentStore } from '../../stores/documentStore'
 import { useSelectionStore } from '../../stores/selectionStore'
-import { MirrorIcon, DeleteIcon } from '../icons/Icons'
+import { FlipHorizontal2 as MirrorIcon, X as DeleteIcon } from 'lucide-react'
 import type { Shape, CircleShape } from '../../types'
 import styles from './HierarchyPanel.module.css'
 

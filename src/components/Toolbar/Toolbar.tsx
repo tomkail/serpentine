@@ -9,10 +9,21 @@ import { createNewDocument, saveDocument, loadDocument, exportSvg, loadPreset } 
 import { presets } from '../../utils/presets'
 import { themeList } from '../../themes'
 import { 
-  MagnetIcon, SmartGuidesIcon, EyeIcon, FrameIcon, 
-  LoopPathIcon, OpenPathIcon, StartPointIcon, EndPointIcon, 
-  VerticalAxisIcon, HorizontalAxisIcon, SvgPreviewIcon, RulerIcon,
-  UndoIcon, RedoIcon, ThemeIcon, DebugIcon, FileIcon, ChevronDownIcon
+  Magnet as MagnetIcon,
+  Eye as EyeIcon,
+  Scan as FrameIcon,
+  FlipHorizontal as VerticalAxisIcon,
+  FlipVertical as HorizontalAxisIcon,
+  FileCode as SvgPreviewIcon,
+  Ruler as RulerIcon,
+  Undo2 as UndoIcon,
+  Redo2 as RedoIcon,
+  File as FileIcon,
+  ChevronDown as ChevronDownIcon,
+  Settings as SettingsIcon
+} from 'lucide-react'
+import { 
+  LoopPathIcon, OpenPathIcon, StartPointIcon, EndPointIcon, SmartGuidesIcon 
 } from '../icons/Icons'
 import { Tooltip } from '../Tooltip/Tooltip'
 import styles from './Toolbar.module.css'
@@ -186,14 +197,14 @@ export function Toolbar() {
     closeMenu()
   }
   
-  // Debug handlers
-  const handleToggleDebug = (toggle: () => void) => () => { toggle(); closeMenu() }
-  
-  // Theme handlers
+  // Settings handlers
+  const handleToggleSetting = (toggle: () => void) => () => { toggle(); closeMenu() }
   const handleSetTheme = (id: string) => { setTheme(id); closeMenu() }
   
   return (
     <div className={styles.toolbar}>
+      {/* === DOCUMENT ZONE === */}
+      
       {/* File Menu */}
       <div className={styles.group}>
         <DropdownMenu
@@ -218,37 +229,33 @@ export function Toolbar() {
             />
           ))}
         </DropdownMenu>
-      </div>
-      
-      <div className={styles.separator} />
-      
-      {/* Undo/Redo */}
-      <div className={styles.group}>
+        
+        {/* Undo/Redo inline with File */}
         <Tooltip text="Undo" shortcut="⌘Z">
           <button
-            className={`${styles.iconToggle} ${!canUndo() ? styles.disabled : ''}`}
+            className={`${styles.iconButton} ${!canUndo() ? styles.disabled : ''}`}
             onClick={undo}
             disabled={!canUndo()}
             aria-label="Undo"
           >
-            <UndoIcon size={20} />
+            <UndoIcon size={18} />
           </button>
         </Tooltip>
         <Tooltip text="Redo" shortcut="⌘⇧Z">
           <button
-            className={`${styles.iconToggle} ${!canRedo() ? styles.disabled : ''}`}
+            className={`${styles.iconButton} ${!canRedo() ? styles.disabled : ''}`}
             onClick={redo}
             disabled={!canRedo()}
             aria-label="Redo"
           >
-            <RedoIcon size={20} />
+            <RedoIcon size={18} />
           </button>
         </Tooltip>
       </div>
       
       <div className={styles.separator} />
       
-      {/* Path options */}
+      {/* === PATH ZONE === */}
       <div className={styles.group}>
         <Tooltip text={closedPath ? "Open path" : "Loop path"}>
           <button
@@ -279,27 +286,22 @@ export function Toolbar() {
             <EndPointIcon size={20} />
           </button>
         </Tooltip>
-        
         {hasMirroredShapes && (
-          <>
-            <div className={styles.smallSeparator} />
-            
-            <Tooltip text={mirrorAxis === 'vertical' ? "Switch to horizontal mirror" : "Switch to vertical mirror"}>
-              <button
-                className={styles.iconToggle}
-                onClick={toggleMirrorAxis}
-                aria-label={`Mirror axis: ${mirrorAxis}`}
-              >
-                {mirrorAxis === 'vertical' ? <VerticalAxisIcon size={20} /> : <HorizontalAxisIcon size={20} />}
-              </button>
-            </Tooltip>
-          </>
+          <Tooltip text={mirrorAxis === 'vertical' ? "Switch to horizontal mirror" : "Switch to vertical mirror"}>
+            <button
+              className={styles.iconToggle}
+              onClick={toggleMirrorAxis}
+              aria-label={`Mirror axis: ${mirrorAxis}`}
+            >
+              {mirrorAxis === 'vertical' ? <VerticalAxisIcon size={20} /> : <HorizontalAxisIcon size={20} />}
+            </button>
+          </Tooltip>
         )}
       </div>
       
       <div className={styles.separator} />
       
-      {/* View controls */}
+      {/* === PRECISION AIDS === */}
       <div className={styles.group}>
         <Tooltip text="Snap to grid" shortcut="S">
           <button
@@ -307,7 +309,7 @@ export function Toolbar() {
             onClick={toggleSnap}
             aria-label={`Snap to grid: ${snapToGrid ? 'on' : 'off'}`}
           >
-            <MagnetIcon size={20} />
+            <MagnetIcon size={18} />
           </button>
         </Tooltip>
         <Tooltip text="Smart guides">
@@ -316,19 +318,22 @@ export function Toolbar() {
             onClick={toggleSmartGuides}
             aria-label={`Smart guides: ${smartGuides ? 'on' : 'off'}`}
           >
-            <SmartGuidesIcon size={20} />
+            <SmartGuidesIcon size={18} />
           </button>
         </Tooltip>
-        
-        <div className={styles.smallSeparator} />
-        
+      </div>
+      
+      <div className={styles.separator} />
+      
+      {/* === VIEW TOOLS === */}
+      <div className={styles.group}>
         <Tooltip text="Fit to view" shortcut="F">
           <button
-            className={styles.iconToggle}
+            className={styles.iconButton}
             onClick={() => fitToView()}
             aria-label="Fit to view"
           >
-            <FrameIcon size={20} />
+            <FrameIcon size={18} />
           </button>
         </Tooltip>
         <Tooltip text="Measurement mode" shortcut="M">
@@ -337,7 +342,7 @@ export function Toolbar() {
             onClick={cycleMeasurementMode}
             aria-label={`Measurement mode: ${measurementMode}`}
           >
-            <RulerIcon size={20} />
+            <RulerIcon size={18} />
           </button>
         </Tooltip>
         <Tooltip text="Hold to isolate" shortcut="I">
@@ -348,35 +353,39 @@ export function Toolbar() {
             onMouseLeave={() => setIsolatePath(false)}
             aria-label={`Isolate path: ${isolatePath ? 'on' : 'off'}`}
           >
-            <EyeIcon size={20} />
-          </button>
-        </Tooltip>
-        
-        <div className={styles.smallSeparator} />
-        
-        <Tooltip text="SVG preview window">
-          <button
-            className={`${styles.iconToggle} ${showSvgPreview ? styles.active : ''}`}
-            onClick={toggleSvgPreview}
-            aria-label={`SVG preview: ${showSvgPreview ? 'on' : 'off'}`}
-          >
-            <SvgPreviewIcon size={20} />
+            <EyeIcon size={18} />
           </button>
         </Tooltip>
       </div>
       
       <div className={styles.separator} />
       
-      {/* Theme Menu */}
+      {/* === OUTPUT === */}
+      <div className={styles.group}>
+        <Tooltip text="SVG preview window">
+          <button
+            className={`${styles.iconToggle} ${showSvgPreview ? styles.active : ''}`}
+            onClick={toggleSvgPreview}
+            aria-label={`SVG preview: ${showSvgPreview ? 'on' : 'off'}`}
+          >
+            <SvgPreviewIcon size={18} />
+          </button>
+        </Tooltip>
+      </div>
+      
+      <div className={styles.separator} />
+      
+      {/* === SETTINGS === */}
       <div className={styles.group}>
         <DropdownMenu
-          trigger={<><ThemeIcon size={18} /><ChevronDownIcon size={12} /></>}
-          isOpen={openMenu === 'theme'}
-          onToggle={() => toggleMenu('theme')}
+          trigger={<><SettingsIcon size={18} /><ChevronDownIcon size={12} /></>}
+          isOpen={openMenu === 'settings'}
+          onToggle={() => toggleMenu('settings')}
           onClose={closeMenu}
-          tooltip="Theme"
+          tooltip="Settings"
           align="right"
         >
+          <MenuLabel>Theme</MenuLabel>
           {themeList.map(theme => (
             <MenuItem 
               key={theme.id}
@@ -384,54 +393,44 @@ export function Toolbar() {
               onClick={() => handleSetTheme(theme.id)}
             />
           ))}
-        </DropdownMenu>
-      </div>
-      
-      <div className={styles.separator} />
-      
-      {/* Debug Menu */}
-      <div className={styles.group}>
-        <DropdownMenu
-          trigger={<><DebugIcon size={18} /><ChevronDownIcon size={12} /></>}
-          isOpen={openMenu === 'debug'}
-          onToggle={() => toggleMenu('debug')}
-          onClose={closeMenu}
-          tooltip="Debug"
-          align="right"
-        >
+          
+          <MenuDivider />
+          <MenuLabel>Debug Overlays</MenuLabel>
           <MenuItem 
             label={`${showTangentPoints ? '✓ ' : '   '}Tangent Points`} 
-            onClick={handleToggleDebug(toggleTangentPoints)} 
+            onClick={handleToggleSetting(toggleTangentPoints)} 
           />
           <MenuItem 
             label={`${showTangentLabels ? '✓ ' : '   '}Tangent Labels`} 
-            onClick={handleToggleDebug(toggleTangentLabels)} 
+            onClick={handleToggleSetting(toggleTangentLabels)} 
           />
           <MenuItem 
             label={`${showArcAngles ? '✓ ' : '   '}Arc Angles`} 
-            onClick={handleToggleDebug(toggleArcAngles)} 
+            onClick={handleToggleSetting(toggleArcAngles)} 
           />
           <MenuItem 
             label={`${showPathOrder ? '✓ ' : '   '}Path Order`} 
-            onClick={handleToggleDebug(togglePathOrder)} 
+            onClick={handleToggleSetting(togglePathOrder)} 
           />
           <MenuItem 
             label={`${showCircleCenters ? '✓ ' : '   '}Circle Centers`} 
-            onClick={handleToggleDebug(toggleCircleCenters)} 
+            onClick={handleToggleSetting(toggleCircleCenters)} 
           />
           <MenuItem 
             label={`${showArcDirection ? '✓ ' : '   '}Arc Direction`} 
-            onClick={handleToggleDebug(toggleArcDirection)} 
+            onClick={handleToggleSetting(toggleArcDirection)} 
           />
+          <MenuItem label="Hide All Debug" onClick={handleToggleSetting(resetDebug)} />
+          
           <MenuDivider />
           <MenuLabel>Performance</MenuLabel>
           <MenuItem 
             label={`${profilingEnabled ? '✓ ' : '   '}Enable Profiling`} 
-            onClick={handleToggleDebug(toggleProfiling)} 
+            onClick={handleToggleSetting(toggleProfiling)} 
           />
           <MenuItem 
             label={`${showPerformanceOverlay ? '✓ ' : '   '}Show FPS Overlay`} 
-            onClick={handleToggleDebug(togglePerformanceOverlay)}
+            onClick={handleToggleSetting(togglePerformanceOverlay)}
             disabled={!profilingEnabled}
           />
           <MenuItem 
@@ -444,8 +443,6 @@ export function Toolbar() {
             onClick={() => { clearProfilingDataAction(); closeMenu() }}
             disabled={!profilingEnabled}
           />
-          <MenuDivider />
-          <MenuItem label="Hide All Debug" onClick={handleToggleDebug(resetDebug)} />
         </DropdownMenu>
       </div>
     </div>

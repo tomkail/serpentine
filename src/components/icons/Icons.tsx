@@ -1,13 +1,83 @@
 /**
- * SVG Icons for consistent use across canvas and UI
- * Each icon is designed to work at small sizes with good visibility
+ * Icon exports using Lucide React icons + custom path icons
+ * Canvas drawing functions are kept custom for Canvas 2D API rendering
  */
+
+// Re-export Lucide icons with consistent naming
+export {
+  // Mirror icons
+  FlipHorizontal2 as MirrorIcon,
+  FlipHorizontal as VerticalAxisIcon,
+  FlipVertical as HorizontalAxisIcon,
+  
+  // Action icons
+  X as DeleteIcon,
+  Plus as PlusIcon,
+  
+  // Tool icons
+  Magnet as MagnetIcon,
+  Eye as EyeIcon,
+  FileCode as SvgPreviewIcon,
+  Ruler as RulerIcon,
+  Scan as FrameIcon,
+  
+  // Edit icons
+  Undo2 as UndoIcon,
+  Redo2 as RedoIcon,
+  
+  // Menu icons
+  Palette as ThemeIcon,
+  Bug as DebugIcon,
+  File as FileIcon,
+  ChevronDown as ChevronDownIcon,
+  Settings as SettingsIcon,
+} from 'lucide-react'
+
+// ============================================================================
+// CUSTOM UI ICONS
+// ============================================================================
 
 interface IconProps {
   size?: number
   className?: string
   color?: string
 }
+
+/**
+ * Smart Guides Icon - Two circles with an alignment line between them
+ * Shows alignment assistance when moving objects
+ */
+export function SmartGuidesIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
+  return (
+    <svg 
+      width={size} 
+      height={size} 
+      viewBox="0 0 16 16" 
+      fill="none" 
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Top circle */}
+      <circle cx="5" cy="4" r="2.5" stroke={color} strokeWidth="1.5" fill="none" />
+      {/* Bottom circle */}
+      <circle cx="11" cy="12" r="2.5" stroke={color} strokeWidth="1.5" fill="none" />
+      {/* Vertical dashed alignment line */}
+      <path 
+        d="M8 1 L8 15" 
+        stroke={color} 
+        strokeWidth="1.25" 
+        strokeLinecap="round"
+        strokeDasharray="2 1.5"
+      />
+    </svg>
+  )
+}
+
+// ============================================================================
+// CUSTOM PATH ICONS
+// These are specialized for the vector path editor and don't have good
+// equivalents in standard icon libraries
+// ============================================================================
 
 /**
  * Loop Path Icon - Circular arrow showing closed loop
@@ -129,367 +199,10 @@ export function EndPointIcon({ size = 16, className, color = 'currentColor' }: I
   )
 }
 
-/**
- * Mirror Icon - Double horizontal arrows indicating reflection
- */
-export function MirrorIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
-  return (
-    <svg 
-      width={size} 
-      height={size} 
-      viewBox="0 0 16 16" 
-      fill="none" 
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* Left arrow */}
-      <path 
-        d="M1 8L4 5M1 8L4 11M1 8H7" 
-        stroke={color} 
-        strokeWidth="1.5" 
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-      />
-      {/* Right arrow */}
-      <path 
-        d="M15 8L12 5M15 8L12 11M15 8H9" 
-        stroke={color} 
-        strokeWidth="1.5" 
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-      />
-      {/* Center divider (mirror axis) */}
-      <path 
-        d="M8 3V13" 
-        stroke={color} 
-        strokeWidth="1" 
-        strokeLinecap="round" 
-        strokeDasharray="2 2"
-      />
-    </svg>
-  )
-}
-
-/**
- * Delete Icon - X mark
- */
-export function DeleteIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
-  return (
-    <svg 
-      width={size} 
-      height={size} 
-      viewBox="0 0 16 16" 
-      fill="none" 
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path 
-        d="M4 4L12 12M12 4L4 12" 
-        stroke={color} 
-        strokeWidth="1.5" 
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-}
-
-/**
- * Magnet Icon - Simple U-magnet with distinct pole markings
- */
-export function MagnetIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
-  return (
-    <svg 
-      width={size} 
-      height={size} 
-      viewBox="0 0 16 16" 
-      fill="none" 
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* Magnet body - U shape */}
-      <path 
-        d="M3 14V6C3 3.24 5.24 1 8 1C10.76 1 13 3.24 13 6V14" 
-        stroke={color} 
-        strokeWidth="2.5" 
-        strokeLinecap="round"
-        fill="none"
-      />
-      {/* Left pole marking - horizontal stripe */}
-      <line x1="1.5" y1="11" x2="4.5" y2="11" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-      {/* Right pole marking - horizontal stripe */}
-      <line x1="11.5" y1="11" x2="14.5" y2="11" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-/**
- * Eye Icon - For isolate/focus view toggle
- */
-export function EyeIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
-  return (
-    <svg 
-      width={size} 
-      height={size} 
-      viewBox="0 0 16 16" 
-      fill="none" 
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* Eye outline */}
-      <path 
-        d="M2 8C2 8 4 4 8 4C12 4 14 8 14 8C14 8 12 12 8 12C4 12 2 8 2 8Z" 
-        stroke={color} 
-        strokeWidth="1.5" 
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-      {/* Pupil */}
-      <circle cx="8" cy="8" r="2" fill={color} />
-    </svg>
-  )
-}
-
-/**
- * Vertical Mirror Axis Icon - Shows a vertical dashed line with horizontal arrows
- */
-export function VerticalAxisIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
-  return (
-    <svg 
-      width={size} 
-      height={size} 
-      viewBox="0 0 16 16" 
-      fill="none" 
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* Vertical dashed line (mirror axis) */}
-      <path 
-        d="M8 2V14" 
-        stroke={color} 
-        strokeWidth="1.5" 
-        strokeLinecap="round"
-        strokeDasharray="2 2"
-      />
-      {/* Left arrow */}
-      <path 
-        d="M5 8L2.5 8M5 5.5L2.5 8L5 10.5" 
-        stroke={color} 
-        strokeWidth="1.25" 
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-      />
-      {/* Right arrow */}
-      <path 
-        d="M11 8L13.5 8M11 5.5L13.5 8L11 10.5" 
-        stroke={color} 
-        strokeWidth="1.25" 
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-/**
- * Horizontal Mirror Axis Icon - Shows a horizontal dashed line with vertical arrows
- */
-export function HorizontalAxisIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
-  return (
-    <svg 
-      width={size} 
-      height={size} 
-      viewBox="0 0 16 16" 
-      fill="none" 
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* Horizontal dashed line (mirror axis) */}
-      <path 
-        d="M2 8H14" 
-        stroke={color} 
-        strokeWidth="1.5" 
-        strokeLinecap="round"
-        strokeDasharray="2 2"
-      />
-      {/* Top arrow */}
-      <path 
-        d="M8 5L8 2.5M5.5 5L8 2.5L10.5 5" 
-        stroke={color} 
-        strokeWidth="1.25" 
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-      />
-      {/* Bottom arrow */}
-      <path 
-        d="M8 11L8 13.5M5.5 11L8 13.5L10.5 11" 
-        stroke={color} 
-        strokeWidth="1.25" 
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-/**
- * Smart Guides Icon - Crosshair with alignment lines
- * Shows alignment assistance when moving objects
- */
-export function SmartGuidesIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
-  return (
-    <svg 
-      width={size} 
-      height={size} 
-      viewBox="0 0 16 16" 
-      fill="none" 
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* Vertical guide line */}
-      <path 
-        d="M8 1V15" 
-        stroke={color} 
-        strokeWidth="1.25" 
-        strokeLinecap="round"
-      />
-      {/* Horizontal guide line */}
-      <path 
-        d="M1 8H15" 
-        stroke={color} 
-        strokeWidth="1.25" 
-        strokeLinecap="round"
-      />
-      {/* Center circle (represents aligned object) */}
-      <circle cx="8" cy="8" r="2.5" stroke={color} strokeWidth="1.25" fill="none" />
-      {/* Small alignment markers */}
-      <circle cx="8" cy="3" r="1" fill={color} />
-      <circle cx="8" cy="13" r="1" fill={color} />
-      <circle cx="3" cy="8" r="1" fill={color} />
-      <circle cx="13" cy="8" r="1" fill={color} />
-    </svg>
-  )
-}
-
-/**
- * SVG Preview Icon - Document with path preview
- */
-export function SvgPreviewIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
-  return (
-    <svg 
-      width={size} 
-      height={size} 
-      viewBox="0 0 16 16" 
-      fill="none" 
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* Document outline */}
-      <rect x="2" y="1" width="12" height="14" rx="1.5" stroke={color} strokeWidth="1.5" fill="none" />
-      {/* SVG path preview - simple curve */}
-      <path 
-        d="M5 10C5 7 7 5 8 5C9 5 11 7 11 10" 
-        stroke={color} 
-        strokeWidth="1.5" 
-        strokeLinecap="round"
-        fill="none"
-      />
-    </svg>
-  )
-}
-
-/**
- * Ruler Icon - Diagonal ruler with tick marks
- * For measurement mode toggle
- */
-export function RulerIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
-  return (
-    <svg 
-      width={size} 
-      height={size} 
-      viewBox="0 0 16 16" 
-      fill="none" 
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* Ruler body - angled rectangle */}
-      <rect 
-        x="1.5" 
-        y="8.5" 
-        width="12" 
-        height="4" 
-        rx="0.5"
-        transform="rotate(-45 1.5 8.5)"
-        stroke={color} 
-        strokeWidth="1.5" 
-        fill="none"
-      />
-      {/* Tick marks along the ruler */}
-      <path 
-        d="M4.5 6.5L5.5 7.5M6.5 4.5L7.5 5.5M8.5 2.5L10 4M10.5 4.5L11.5 5.5" 
-        stroke={color} 
-        strokeWidth="1.25" 
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-}
-
-/**
- * Frame/Fit Icon - Corner brackets framing a rectangle
- */
-export function FrameIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
-  return (
-    <svg 
-      width={size} 
-      height={size} 
-      viewBox="0 0 16 16" 
-      fill="none" 
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* Top-left corner */}
-      <path 
-        d="M2 5.5V3C2 2.45 2.45 2 3 2H5.5" 
-        stroke={color} 
-        strokeWidth="1.5" 
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {/* Top-right corner */}
-      <path 
-        d="M10.5 2H13C13.55 2 14 2.45 14 3V5.5" 
-        stroke={color} 
-        strokeWidth="1.5" 
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {/* Bottom-left corner */}
-      <path 
-        d="M2 10.5V13C2 13.55 2.45 14 3 14H5.5" 
-        stroke={color} 
-        strokeWidth="1.5" 
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {/* Bottom-right corner */}
-      <path 
-        d="M10.5 14H13C13.55 14 14 13.55 14 13V10.5" 
-        stroke={color} 
-        strokeWidth="1.5" 
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {/* Inner rectangle representing content */}
-      <rect x="5" y="5" width="6" height="6" rx="0.5" stroke={color} strokeWidth="1" fill="none" />
-    </svg>
-  )
-}
-
-/**
- * Canvas drawing functions for the same icons
- * These draw the icons using Canvas 2D API with the same visual design
- */
+// ============================================================================
+// CANVAS DRAWING FUNCTIONS
+// These draw icons using Canvas 2D API for direct canvas rendering
+// ============================================================================
 
 export interface CanvasIconOptions {
   ctx: CanvasRenderingContext2D
@@ -670,188 +383,3 @@ export function drawPlusIconCanvas({
   
   ctx.restore()
 }
-
-/**
- * Undo Icon - Curved arrow pointing left/back
- */
-export function UndoIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
-  return (
-    <svg 
-      width={size} 
-      height={size} 
-      viewBox="0 0 16 16" 
-      fill="none" 
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path 
-        d="M3 6H10C11.66 6 13 7.34 13 9C13 10.66 11.66 12 10 12H7" 
-        stroke={color} 
-        strokeWidth="1.75" 
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-      <path 
-        d="M5.5 3.5L3 6L5.5 8.5" 
-        stroke={color} 
-        strokeWidth="1.75" 
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </svg>
-  )
-}
-
-/**
- * Redo Icon - Curved arrow pointing right/forward
- */
-export function RedoIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
-  return (
-    <svg 
-      width={size} 
-      height={size} 
-      viewBox="0 0 16 16" 
-      fill="none" 
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path 
-        d="M13 6H6C4.34 6 3 7.34 3 9C3 10.66 4.34 12 6 12H9" 
-        stroke={color} 
-        strokeWidth="1.75" 
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-      <path 
-        d="M10.5 3.5L13 6L10.5 8.5" 
-        stroke={color} 
-        strokeWidth="1.75" 
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </svg>
-  )
-}
-
-/**
- * Theme/Palette Icon - Circle with color segments
- */
-export function ThemeIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
-  return (
-    <svg 
-      width={size} 
-      height={size} 
-      viewBox="0 0 16 16" 
-      fill="none" 
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <circle cx="8" cy="8" r="6" stroke={color} strokeWidth="1.5" fill="none" />
-      <path 
-        d="M8 2V8L12.24 4.24" 
-        stroke={color} 
-        strokeWidth="1.5" 
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-      <path 
-        d="M8 8V14" 
-        stroke={color} 
-        strokeWidth="1.5" 
-        strokeLinecap="round"
-        fill="none"
-      />
-      <circle cx="5" cy="6" r="1.25" fill={color} />
-      <circle cx="10.5" cy="10" r="1.25" fill={color} />
-    </svg>
-  )
-}
-
-/**
- * Debug/Bug Icon - Stylized bug shape
- */
-export function DebugIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
-  return (
-    <svg 
-      width={size} 
-      height={size} 
-      viewBox="0 0 16 16" 
-      fill="none" 
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {/* Bug body */}
-      <ellipse cx="8" cy="9.5" rx="3.5" ry="4" stroke={color} strokeWidth="1.5" fill="none" />
-      {/* Bug head */}
-      <circle cx="8" cy="4.5" r="2" stroke={color} strokeWidth="1.5" fill="none" />
-      {/* Antennae */}
-      <path d="M6.5 3L5 1.5M9.5 3L11 1.5" stroke={color} strokeWidth="1.25" strokeLinecap="round" />
-      {/* Legs */}
-      <path d="M4.5 7.5L2.5 6.5M4.5 10L2.5 10M4.5 12L3 13.5" stroke={color} strokeWidth="1.25" strokeLinecap="round" />
-      <path d="M11.5 7.5L13.5 6.5M11.5 10L13.5 10M11.5 12L13 13.5" stroke={color} strokeWidth="1.25" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-/**
- * File/Document Icon - Simple document with folded corner
- */
-export function FileIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
-  return (
-    <svg 
-      width={size} 
-      height={size} 
-      viewBox="0 0 16 16" 
-      fill="none" 
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path 
-        d="M3 2.5C3 1.95 3.45 1.5 4 1.5H9L13 5.5V13.5C13 14.05 12.55 14.5 12 14.5H4C3.45 14.5 3 14.05 3 13.5V2.5Z" 
-        stroke={color} 
-        strokeWidth="1.5" 
-        strokeLinejoin="round"
-        fill="none"
-      />
-      <path 
-        d="M9 1.5V5.5H13" 
-        stroke={color} 
-        strokeWidth="1.5" 
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </svg>
-  )
-}
-
-/**
- * Chevron Down Icon - Simple downward arrow for dropdowns
- */
-export function ChevronDownIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
-  return (
-    <svg 
-      width={size} 
-      height={size} 
-      viewBox="0 0 16 16" 
-      fill="none" 
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path 
-        d="M4 6L8 10L12 6" 
-        stroke={color} 
-        strokeWidth="1.75" 
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </svg>
-  )
-}
-
