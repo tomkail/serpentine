@@ -11,13 +11,15 @@ console.log('%c[Store] documentStore module loading...', 'color: #ffd93d;')
 
 /**
  * Common mirror presets for cycling through
- * - 2-way vertical: 1 plane at 0° (vertical axis)
- * - 2-way horizontal: 1 plane at 90° (horizontal axis)
+ * - None: no mirroring
+ * - 2-way vertical: 1 plane at 90° (vertical axis, left-right symmetry)
+ * - 2-way horizontal: 1 plane at 0° (horizontal axis, up-down symmetry)
  * - 4-way: 2 planes at 0° and 90°
  * - 6-way: 3 planes at 0°, 60°, 120°
  * - 8-way: 4 planes at 0°, 45°, 90°, 135°
  */
 export const MIRROR_PRESETS: { name: string; config: MirrorConfig }[] = [
+  { name: 'None', config: { planeCount: 0, startAngle: 0 } }, // No mirroring
   { name: '2-way (vertical)', config: { planeCount: 1, startAngle: Math.PI / 2 } }, // Y-axis reflection (left-right symmetry)
   { name: '2-way (horizontal)', config: { planeCount: 1, startAngle: 0 } }, // X-axis reflection (up-down symmetry)
   { name: '4-way', config: { planeCount: 2, startAngle: 0 } },

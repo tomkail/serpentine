@@ -17,6 +17,7 @@ import {
   Maximize2 as FourWayIcon,
   Hexagon as SixWayIcon,
   Octagon as EightWayIcon,
+  Circle as NoMirrorIcon,
   Ruler as RulerIcon,
   Undo2 as UndoIcon,
   Redo2 as RedoIcon,
@@ -49,7 +50,10 @@ function getMirrorPresetName(config: MirrorConfig): string {
 function getMirrorIcon(config: MirrorConfig) {
   const { planeCount, startAngle } = config
   
-  if (planeCount === 1) {
+  if (planeCount === 0) {
+    // No mirroring
+    return <NoMirrorIcon size={20} />
+  } else if (planeCount === 1) {
     // 2-way: vertical or horizontal icon based on angle
     // startAngle = π/2 means vertical plane (left-right symmetry)
     // startAngle = 0 means horizontal plane (top-bottom symmetry)
@@ -63,7 +67,7 @@ function getMirrorIcon(config: MirrorConfig) {
     return <EightWayIcon size={20} />
   }
   
-  return <VerticalAxisIcon size={20} />
+  return <NoMirrorIcon size={20} />
 }
 
 // Menu dropdown that opens upward

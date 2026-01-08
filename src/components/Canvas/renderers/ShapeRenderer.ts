@@ -249,7 +249,7 @@ export function renderSelectedTangentHandles(
   for (const circle of selectedCircles) {
     if (circle.mirrored) {
       // Get all mirrors for this circle using the generic system
-      const mirrors = getMirrorsForCircle(circle, mirrorConfig, false)
+      const mirrors = getMirrorsForCircle(circle, mirrorConfig)
       for (const mirror of mirrors) {
         renderGhostTangentHandles(ctx, mirror, expandedShapes, expandedOrder, theme, zoom, closedPath, useStartPoint, useEndPoint)
       }
