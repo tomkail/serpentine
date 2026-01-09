@@ -8,6 +8,13 @@
 .canvas {
   display: block;
   cursor: default;
+  /* Prevent browser touch gestures (scroll, zoom) on canvas */
+  touch-action: none;
+  /* Prevent text selection on touch */
+  -webkit-user-select: none;
+  user-select: none;
+  /* Prevent iOS callout on long-press */
+  -webkit-touch-callout: none;
 }
 
 .canvas.panning {

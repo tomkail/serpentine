@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect } from 'react'
 import { Canvas } from './Canvas/Canvas'
 import { FloatingPreview } from './FloatingPreview/FloatingPreview'
 import { Toolbar } from './Toolbar/Toolbar'
+import { ModifierBar } from './ModifierBar/ModifierBar'
 import { Notifications } from './Notifications/Notifications'
 import { ErrorBoundary } from './ErrorBoundary/ErrorBoundary'
 import { ThemeProvider } from './ThemeProvider'
@@ -45,6 +46,7 @@ function AppContent() {
         <FloatingPreview />
       </div>
       <Toolbar />
+      <ModifierBar />
       <Notifications />
     </div>
   )

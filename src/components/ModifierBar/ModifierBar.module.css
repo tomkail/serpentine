@@ -1,0 +1,63 @@
+.modifierBar {
+  position: fixed;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 99;
+  /* Transition for expand/collapse effect */
+  transition: opacity 0.2s ease;
+}
+
+/* Collapsed state - lower opacity to indicate availability */
+.modifierBar:not(.expanded) {
+  opacity: 0.5;
+}
+
+.modifierBar:not(.expanded):active {
+  opacity: 1;
+}
+
+.expanded {
+  opacity: 1;
+}
+
+.modifierButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--menu-bg);
+  border: 1px solid var(--menu-border);
+  color: var(--text-secondary);
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 12px var(--shadow-color);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: all 0.15s ease;
+}
+
+.modifierButton:active {
+  transform: scale(0.95);
+}
+
+.modifierButton.active {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: var(--panel-bg);
+  box-shadow: 0 2px 16px var(--accent-color);
+}
+
+/* Landscape orientation - position differently */
+@media (orientation: landscape) and (max-height: 500px) {
+  .modifierBar {
+    bottom: 16px;
+    right: calc(16px + env(safe-area-inset-right, 0px));
+  }
+}
+

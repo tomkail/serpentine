@@ -1,10 +1,12 @@
 .toolbar {
   position: fixed;
   bottom: 16px;
+  /* Account for iPhone home indicator */
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%);
   height: var(--toolbar-height);
-  max-width: calc(100vw - 32px);
+  max-width: calc(100vw - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
   background: var(--menu-bg);
   border: 1px solid var(--menu-border);
   border-radius: 12px;
@@ -12,10 +14,29 @@
   align-items: center;
   justify-content: center;
   padding: 0 4px;
-  gap: clamp(16px, 2.5vw, 32px);
+  gap: clamp(8px, 2.5vw, 32px);
+  /* overflow must be visible for dropdown menus to show above toolbar */
   overflow: visible;
   box-shadow: 0 4px 24px var(--shadow-color), 0 0 0 1px rgba(255,255,255,0.05) inset;
   z-index: 100;
+}
+
+/* Mobile: smaller gaps and padding, allow shrinking */
+@media (max-width: 600px) {
+  .toolbar {
+    gap: 4px;
+    padding: 0 8px;
+    /* Full width on very small screens */
+    max-width: calc(100vw - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+  }
+}
+
+/* Very narrow screens: even smaller gaps */
+@media (max-width: 400px) {
+  .toolbar {
+    gap: 2px;
+    padding: 0 4px;
+  }
 }
 
 .group {
@@ -23,6 +44,19 @@
   align-items: center;
   gap: 8px;
   overflow: visible;
+  flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .group {
+    gap: 4px;
+  }
+}
+
+@media (max-width: 400px) {
+  .group {
+    gap: 2px;
+  }
 }
 
 
@@ -91,9 +125,19 @@
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.1s;
+  /* Prevent accidental zooming on double-tap */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
 }
 
 .iconButton:hover {
+  background: var(--panel-item-hover);
+  color: var(--text-primary);
+}
+
+/* Active state for touch devices */
+.iconButton:active {
   background: var(--panel-item-hover);
   color: var(--text-primary);
 }
@@ -124,9 +168,20 @@
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.15s;
+  /* Prevent accidental zooming on double-tap */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
 }
 
 .iconToggle:hover {
+  background: var(--panel-item-hover);
+  border-color: var(--panel-border);
+  color: var(--text-primary);
+}
+
+/* Active state for touch devices */
+.iconToggle:active {
   background: var(--panel-item-hover);
   border-color: var(--panel-border);
   color: var(--text-primary);
@@ -149,6 +204,15 @@
   background: transparent;
   border-color: transparent;
   color: var(--text-muted);
+}
+
+/* Mobile: Increase touch targets to 44px (Apple HIG recommended minimum) */
+@media (pointer: coarse) {
+  .iconButton,
+  .iconToggle {
+    width: 44px;
+    height: 44px;
+  }
 }
 
 .slider {
@@ -208,9 +272,17 @@
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.1s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
 }
 
 .menuButton:hover {
+  background: var(--panel-item-hover);
+  color: var(--text-primary);
+}
+
+.menuButton:active {
   background: var(--panel-item-hover);
   color: var(--text-primary);
 }
@@ -221,17 +293,28 @@
   color: var(--text-primary);
 }
 
+@media (pointer: coarse) {
+  .menuButton {
+    min-width: 44px;
+    height: 44px;
+  }
+}
+
 .dropdown {
   position: absolute;
   bottom: calc(100% + 8px);
   left: 0;
   min-width: 200px;
+  max-height: calc(100vh - var(--toolbar-height) - 100px - env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
   background: var(--menu-bg);
   border: 1px solid var(--menu-border);
   border-radius: 8px;
   padding: 6px;
   box-shadow: 0 -4px 20px var(--shadow-color);
   z-index: 1000;
+  /* Prevent inertial scrolling causing issues */
+  overscroll-behavior: contain;
 }
 
 .dropdownRight {
@@ -240,12 +323,23 @@
   right: 0;
   left: auto;
   min-width: 200px;
+  max-height: calc(100vh - var(--toolbar-height) - 100px - env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
   background: var(--menu-bg);
   border: 1px solid var(--menu-border);
   border-radius: 8px;
   padding: 6px;
   box-shadow: 0 -4px 20px var(--shadow-color);
   z-index: 1000;
+  overscroll-behavior: contain;
+}
+
+/* On mobile, dropdowns may need to be fixed position for better UX */
+@media (max-width: 600px) {
+  .dropdown,
+  .dropdownRight {
+    max-width: calc(100vw - 32px);
+  }
 }
 
 .menuItem {
@@ -260,15 +354,29 @@
   text-align: left;
   transition: background 0.1s;
   white-space: nowrap;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .menuItem:hover:not(:disabled) {
   background: var(--menu-hover);
 }
 
+.menuItem:active:not(:disabled) {
+  background: var(--menu-hover);
+}
+
 .menuItem:disabled {
   color: var(--text-muted);
   cursor: not-allowed;
+}
+
+/* Touch-friendly menu items */
+@media (pointer: coarse) {
+  .menuItem {
+    padding: 12px 16px;
+    min-height: 44px;
+  }
 }
 
 .menuItemLabel {

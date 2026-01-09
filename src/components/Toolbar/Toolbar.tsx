@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect, ReactNode } from 'react'
+import { useState, useRef, useEffect, ReactNode, useCallback } from 'react'
 import { useSettingsStore } from '../../stores/settingsStore'
+import { useIsTouchDevice } from '../../hooks/useIsTouchDevice'
 import { useDocumentStore, MIRROR_PRESETS } from '../../stores/documentStore'
 import { useDebugStore } from '../../stores/debugStore'
 import { useHistoryStore, undo, redo } from '../../stores/historyStore'
@@ -171,6 +172,7 @@ function MenuLabel({ children }: { children: ReactNode }) {
 
 export function Toolbar() {
   const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const isTouchDevice = useIsTouchDevice()
   
   // Settings store
   const snapToGrid = useSettingsStore(state => state.snapToGrid)
@@ -183,6 +185,11 @@ export function Toolbar() {
   const setIsolatePath = useSettingsStore(state => state.setIsolatePath)
   const showSvgPreview = useSettingsStore(state => state.showSvgPreview)
   const toggleSvgPreview = useSettingsStore(state => state.toggleSvgPreview)
+  
+  // Toggle isolate on touch devices (instead of hold)
+  const handleIsolateToggle = useCallback(() => {
+    setIsolatePath(!isolatePath)
+  }, [setIsolatePath, isolatePath])
   
   // Path options
   const closedPath = useDocumentStore(state => state.closedPath)
@@ -328,7 +335,7 @@ export function Toolbar() {
         </Tooltip>
         <Tooltip text={getMirrorPresetName(mirrorConfig) + " - click to cycle"}>
           <button
-            className={`${styles.iconToggle} ${hasMirroredShapes ? styles.active : ''}`}
+            className={`${styles.iconToggle} ${mirrorConfig.planeCount > 0 && hasMirroredShapes ? styles.active : ''}`}
             onClick={cycleMirrorPreset}
             aria-label={`Mirror mode: ${getMirrorPresetName(mirrorConfig)}`}
           >
@@ -383,12 +390,14 @@ export function Toolbar() {
             <RulerIcon size={18} />
           </button>
         </Tooltip>
-        <Tooltip text="Hold to isolate" shortcut="I">
+        <Tooltip text={isTouchDevice ? "Toggle isolate" : "Hold to isolate"} shortcut="I">
           <button
             className={`${styles.iconToggle} ${isolatePath ? styles.active : ''}`}
-            onMouseDown={() => setIsolatePath(true)}
-            onMouseUp={() => setIsolatePath(false)}
-            onMouseLeave={() => setIsolatePath(false)}
+            // Touch devices: toggle on tap; Desktop: hold to activate
+            onClick={isTouchDevice ? handleIsolateToggle : undefined}
+            onMouseDown={isTouchDevice ? undefined : () => setIsolatePath(true)}
+            onMouseUp={isTouchDevice ? undefined : () => setIsolatePath(false)}
+            onMouseLeave={isTouchDevice ? undefined : () => setIsolatePath(false)}
             aria-label={`Isolate path: ${isolatePath ? 'on' : 'off'}`}
           >
             <EyeIcon size={18} />

@@ -225,8 +225,8 @@ function getTooltipInfo(
       
       const isEntry = hoverTarget.type === 'entry-length'
       const length = isEntry ? (shape.entryTangentLength ?? 1.0) : (shape.exitTangentLength ?? 1.0)
-      // Position above the tangent point (pivot for length adjustment)
-      const position = isEntry ? info.entryPoint : info.exitPoint
+      // Position above the length handle (the actual handle being hovered)
+      const position = isEntry ? info.entryLengthHandle : info.exitLengthHandle
       
       return {
         content: {
@@ -340,6 +340,23 @@ function getTooltipInfo(
           modifiers: ['⇧/⌥ reset both']
         },
         position: isEntry ? info.rawEntryLengthHandle : info.rawExitLengthHandle,
+        anchor: 'above'
+      }
+    }
+
+    case 'shape-body': {
+      // Position above the center of the circle
+      const position = {
+        x: shape.center.x,
+        y: shape.center.y - shape.radius * 0.3
+      }
+      
+      return {
+        content: {
+          action: 'Drag to move',
+          modifiers: ['⇧ constrain to axis']
+        },
+        position,
         anchor: 'above'
       }
     }

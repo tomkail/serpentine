@@ -3,6 +3,7 @@ import { useDocumentStore } from '../../stores/documentStore'
 import { useViewportStore, screenToWorld } from '../../stores/viewportStore'
 import { useSelectionStore } from '../../stores/selectionStore'
 import { useSettingsStore } from '../../stores/settingsStore'
+import { undo, redo } from '../../stores/historyStore'
 import { createCircle } from '../../geometry/shapes/Circle'
 import { 
   isOnDirectionRing, 
@@ -37,6 +38,58 @@ import {
 } from '../../constants'
 import { computeSmartGuides } from '../../geometry/smartGuides'
 import { getScaleCursor, getCursorForTarget, getMarqueeCursor } from './cursorUtils'
+
+/**
+ * Touch state for gesture tracking
+ */
+interface TouchState {
+  // Single touch tracking
+  activeTouchId: number | null
+  touchStartTime: number
+  touchStartPos: { x: number; y: number } | null
+  // Double-tap detection
+  lastTapTime: number
+  lastTapPos: { x: number; y: number } | null
+  // Multi-touch tracking for pinch/pan
+  touches: Map<number, { x: number; y: number }>
+  initialPinchDistance: number | null
+  initialPinchCenter: { x: number; y: number } | null
+  initialZoom: number
+  initialPan: { x: number; y: number }
+  isPinching: boolean
+  // Single-finger pan (when touching empty space)
+  isPanningWithSingleFinger: boolean
+  panStartPos: { x: number; y: number } | null
+  panStartPan: { x: number; y: number } | null
+  // Multi-finger tap detection (for undo/redo)
+  multiTouchStartTime: number
+  multiTouchStartPositions: Map<number, { x: number; y: number }>
+  maxTouchCount: number // Track max fingers during gesture
+}
+
+const DOUBLE_TAP_THRESHOLD = 300 // ms
+const DOUBLE_TAP_DISTANCE = 30 // pixels
+const MULTI_TAP_THRESHOLD = 250 // ms - max duration for a multi-finger tap
+const MULTI_TAP_MOVE_THRESHOLD = 20 // pixels - max movement allowed for tap
+
+/**
+ * Calculate distance between two touch points
+ */
+function getTouchDistance(t1: { x: number; y: number }, t2: { x: number; y: number }): number {
+  const dx = t2.x - t1.x
+  const dy = t2.y - t1.y
+  return Math.sqrt(dx * dx + dy * dy)
+}
+
+/**
+ * Calculate center point between two touch points
+ */
+function getTouchCenter(t1: { x: number; y: number }, t2: { x: number; y: number }): { x: number; y: number } {
+  return {
+    x: (t1.x + t2.x) / 2,
+    y: (t1.y + t2.y) / 2
+  }
+}
 
 /**
  * Check if a circle intersects with a rectangle
@@ -170,24 +223,50 @@ export function useCanvasInteraction(
   const prevMouseDownButton = useRef<number | null>(null)
   const lastMouseDownButton = useRef<number | null>(null)
   
+  // Touch state for gesture handling
+  const touchState = useRef<TouchState>({
+    activeTouchId: null,
+    touchStartTime: 0,
+    touchStartPos: null,
+    lastTapTime: 0,
+    lastTapPos: null,
+    touches: new Map(),
+    initialPinchDistance: null,
+    initialPinchCenter: null,
+    initialZoom: 1,
+    initialPan: { x: 0, y: 0 },
+    isPinching: false,
+    isPanningWithSingleFinger: false,
+    panStartPos: null,
+    panStartPan: null,
+    multiTouchStartTime: 0,
+    multiTouchStartPositions: new Map(),
+    maxTouchCount: 0
+  })
+  
   // Track modifier keys - check for middle mouse or space+left click
   const isPanning = useCallback((e: MouseEvent | WheelEvent): boolean => {
     return e.button === 1 || (e.button === 0 && spaceKeyHeld.current)
   }, [])
   
-  // Get mouse position in world coordinates
-  const getWorldPos = useCallback((e: MouseEvent): Point => {
+  // Get position in world coordinates from screen position
+  const getWorldPosFromScreen = useCallback((screenX: number, screenY: number): Point => {
     const canvas = canvasRef.current
     if (!canvas) return { x: 0, y: 0 }
     
     const rect = canvas.getBoundingClientRect()
     const screenPos = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
+      x: screenX - rect.left,
+      y: screenY - rect.top
     }
     
     return screenToWorld(screenPos, pan, zoom)
   }, [canvasRef, pan, zoom])
+  
+  // Get mouse position in world coordinates
+  const getWorldPos = useCallback((e: MouseEvent): Point => {
+    return getWorldPosFromScreen(e.clientX, e.clientY)
+  }, [getWorldPosFromScreen])
   
   // Find what's at a position and return detailed hover info
   const findTargetAt = useCallback((worldPos: Point): { 
@@ -898,8 +977,15 @@ export function useCanvasInteraction(
       if (!shape || shape.type !== 'circle') return
       
       if (dragState.mode === 'move') {
-        const dx = worldPos.x - dragState.startPoint.x
-        const dy = worldPos.y - dragState.startPoint.y
+        let dx = worldPos.x - dragState.startPoint.x
+        let dy = worldPos.y - dragState.startPoint.y
+        
+        // Apply axis constraint if Shift is held
+        if (e.shiftKey) {
+          const constrainedDelta = constrainToNearestAxis({ x: dx, y: dy }, constraintAxes)
+          dx = constrainedDelta.x
+          dy = constrainedDelta.y
+        }
         
         // Multi-select move: update all shapes that were selected when drag started
         if (dragState.shapeStarts && dragState.shapeStarts.size > 0) {
@@ -1253,7 +1339,7 @@ export function useCanvasInteraction(
     setHovered(hit.shape?.id ?? null)
     setMouseWorldPos(worldPos)
     canvas.style.cursor = getCursor(hit.hoverTarget, false)
-  }, [canvasRef, getWorldPos, dragState, shapes, circles, shapeOrder, updateShape, updateShapes, snapToGridEnabled, findTargetAt, getCursor, setHovered, setHoverTarget, setMouseWorldPos, setEntryOffset, setExitOffset, setEntryTangentLength, setExitTangentLength, selectAll, setDragState])
+  }, [canvasRef, getWorldPos, dragState, shapes, circles, shapeOrder, updateShape, updateShapes, snapToGridEnabled, findTargetAt, getCursor, setHovered, setHoverTarget, setMouseWorldPos, setEntryOffset, setExitOffset, setEntryTangentLength, setExitTangentLength, selectAll, setDragState, constraintAxes, smartGuidesEnabled, zoom, closedPath, useStartPoint, useEndPoint, mirrorConfig, setActiveGuides, clearActiveGuides])
   
   // Mouse up handler
   const handleMouseUp = useCallback(() => {
@@ -1283,6 +1369,655 @@ export function useCanvasInteraction(
     const factor = e.deltaY > 0 ? 0.9 : 1.1
     zoomBy(factor, center)
   }, [canvasRef, zoomBy])
+  
+  // ========== TOUCH EVENT HANDLERS ==========
+  
+  // Touch start handler
+  const handleTouchStart = useCallback((e: TouchEvent) => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    
+    const rect = canvas.getBoundingClientRect()
+    const ts = touchState.current
+    
+    // Update touch tracking
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const touch = e.changedTouches[i]
+      ts.touches.set(touch.identifier, {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+      })
+    }
+    
+    const touchCount = ts.touches.size
+    
+    // Track multi-finger tap (for undo/redo gestures)
+    if (touchCount >= 2) {
+      // If this is a new multi-touch gesture, record start time and positions
+      if (ts.maxTouchCount < 2) {
+        ts.multiTouchStartTime = Date.now()
+        ts.multiTouchStartPositions.clear()
+      }
+      // Always update max touch count and start positions
+      ts.maxTouchCount = Math.max(ts.maxTouchCount, touchCount)
+      for (const [id, pos] of ts.touches) {
+        if (!ts.multiTouchStartPositions.has(id)) {
+          ts.multiTouchStartPositions.set(id, { ...pos })
+        }
+      }
+    }
+    
+    // Three-finger touch: just track for tap, don't do anything else
+    if (touchCount >= 3) {
+      e.preventDefault()
+      // Cancel any other gestures
+      ts.isPinching = false
+      ts.isPanningWithSingleFinger = false
+      if (dragState) {
+        setDragState(null)
+      }
+      return
+    }
+    
+    // Two-finger gesture: pinch-to-zoom or two-finger pan
+    if (touchCount === 2) {
+      e.preventDefault()
+      const touchArray = Array.from(ts.touches.values())
+      const [t1, t2] = touchArray
+      
+      ts.initialPinchDistance = getTouchDistance(t1, t2)
+      ts.initialPinchCenter = getTouchCenter(t1, t2)
+      ts.initialZoom = zoom
+      ts.initialPan = { ...pan }
+      ts.isPinching = true
+      
+      // Cancel any single-touch drag in progress
+      ts.isPanningWithSingleFinger = false
+      if (dragState) {
+        setDragState(null)
+      }
+      return
+    }
+    
+    // Single touch: simulate mouse behavior
+    if (touchCount === 1) {
+      const touch = e.changedTouches[0]
+      ts.activeTouchId = touch.identifier
+      ts.touchStartTime = Date.now()
+      ts.touchStartPos = { x: touch.clientX, y: touch.clientY }
+      
+      // Check for double-tap
+      const now = Date.now()
+      const tapPos = { x: touch.clientX, y: touch.clientY }
+      
+      if (
+        ts.lastTapTime && 
+        ts.lastTapPos &&
+        now - ts.lastTapTime < DOUBLE_TAP_THRESHOLD &&
+        getTouchDistance(tapPos, ts.lastTapPos) < DOUBLE_TAP_DISTANCE
+      ) {
+        // Double tap detected - create circle
+        e.preventDefault()
+        ts.lastTapTime = 0
+        ts.lastTapPos = null
+        
+        const worldPos = getWorldPosFromScreen(touch.clientX, touch.clientY)
+        
+        // Check if we tapped on an existing shape
+        const hit = findTargetAt(worldPos)
+        if (hit.shape) {
+          // Double-tapped on a shape, don't create new circle
+          return
+        }
+        
+        // Check if tap is on a path segment
+        const pathHit = findPathSegmentAt(circles, shapeOrder, worldPos, PATH_HIT_TOLERANCE / zoom, globalStretch, closedPath, useStartPoint, useEndPoint, mirrorConfig)
+        
+        if (pathHit) {
+          const radius = calculateNonOverlappingRadius(pathHit.point, circles)
+          const closestCircle = findClosestCircle(circles, pathHit.point)
+          const circleCount = shapes.filter(s => s.type === 'circle').length
+        const newCircle: CircleShape = {
+          ...createCircle(pathHit.point, radius, undefined, `Circle ${circleCount + 1}`),
+          mirrored: closestCircle?.mirrored ?? true
+        }
+          const insertIndex = pathHit.fromCircleIndex + 1
+          insertShapeAt(newCircle, insertIndex)
+          select(newCircle.id, false)
+          return
+        }
+        
+        // Double-tap on empty space - create circle
+        const closestPathHit = findClosestPointOnPath(circles, shapeOrder, worldPos, globalStretch, closedPath, useStartPoint, useEndPoint, mirrorConfig)
+        const radius = calculateNonOverlappingRadius(worldPos, circles)
+        const closestCircle = findClosestCircle(circles, worldPos)
+        const circleCount = shapes.filter(s => s.type === 'circle').length
+        const newCircle: CircleShape = {
+          ...createCircle(worldPos, radius, undefined, `Circle ${circleCount + 1}`),
+          mirrored: closestCircle?.mirrored ?? true
+        }
+        const insertIndex = closestPathHit ? closestPathHit.fromCircleIndex + 1 : shapeOrder.length
+        insertShapeAt(newCircle, insertIndex)
+        select(newCircle.id, false)
+        return
+      }
+      
+      // Store tap info for potential double-tap
+      ts.lastTapTime = now
+      ts.lastTapPos = tapPos
+      
+      // Simulate mouse down for single touch
+      const worldPos = getWorldPosFromScreen(touch.clientX, touch.clientY)
+      const hit = findTargetAt(worldPos)
+      
+      if (hit.shape) {
+        const { shape, hoverTarget, tangentHandle } = hit
+        
+        // Handle delete icon tap
+        if (hoverTarget?.type === 'delete-icon') {
+          e.preventDefault()
+          removeShape(shape.id)
+          clearSelection()
+          return
+        }
+        
+        // Handle mirror icon tap
+        if (hoverTarget?.type === 'mirror-icon') {
+          e.preventDefault()
+          toggleMirror(shape.id)
+          return
+        }
+        
+        // Handle index dot tap
+        if (hoverTarget?.type === 'index-dot') {
+          e.preventDefault()
+          const currentIndex = shapeOrder.indexOf(shape.id)
+          const targetIndex = hoverTarget.dotIndex
+          if (currentIndex !== targetIndex && targetIndex >= 0 && targetIndex < shapeOrder.length) {
+            const newOrder = [...shapeOrder]
+            newOrder.splice(currentIndex, 1)
+            newOrder.splice(targetIndex, 0, shape.id)
+            reorderShapes(newOrder)
+          }
+          return
+        }
+        
+        // Handle direction ring tap
+        if (hoverTarget?.type === 'direction-ring') {
+          e.preventDefault()
+          toggleDirection(shape.id)
+          return
+        }
+        
+        // Handle tangent handle drag
+        if (tangentHandle && !tangentHandle.includes('slot')) {
+          e.preventDefault()
+          const { expandedShapes, expandedOrder } = expandMirroredCircles(circles, shapeOrder, mirrorConfig)
+          const info = computeTangentHandleInfo(shape, expandedShapes, expandedOrder, closedPath, useStartPoint, useEndPoint)
+          
+          let mode: DragMode = null
+          let startAngle = 0
+          let startOffset = 0
+          let startOtherOffset = 0
+          let startTangentLength = DEFAULT_TANGENT_LENGTH
+          let startOtherTangentLength = DEFAULT_TANGENT_LENGTH
+          
+          if (tangentHandle === 'entry-offset') {
+            mode = 'tangent-entry-offset'
+            startAngle = info?.entryAngle ?? 0
+            startOffset = shape.entryOffset ?? 0
+            startOtherOffset = shape.exitOffset ?? 0
+          } else if (tangentHandle === 'exit-offset') {
+            mode = 'tangent-exit-offset'
+            startAngle = info?.exitAngle ?? 0
+            startOffset = shape.exitOffset ?? 0
+            startOtherOffset = shape.entryOffset ?? 0
+          } else if (tangentHandle === 'entry-length') {
+            mode = 'tangent-entry-length'
+            startTangentLength = shape.entryTangentLength ?? 1.0
+            startOtherTangentLength = shape.exitTangentLength ?? 1.0
+          } else if (tangentHandle === 'exit-length') {
+            mode = 'tangent-exit-length'
+            startTangentLength = shape.exitTangentLength ?? 1.0
+            startOtherTangentLength = shape.entryTangentLength ?? 1.0
+          }
+          
+          if (mode) {
+            setDragState({
+              mode,
+              shapeId: shape.id,
+              startPoint: worldPos,
+              startCenter: { ...shape.center },
+              startRadius: shape.radius,
+              startAngle,
+              startOffset,
+              startOtherOffset,
+              startTangentLength,
+              startOtherTangentLength
+            })
+          }
+          return
+        }
+        
+        // Start dragging shape (move or scale)
+        e.preventDefault()
+        const isEdge = hoverTarget?.type === 'shape-edge'
+        const mode = isEdge ? 'scale' : 'move'
+        const isAlreadySelected = selectedIds.includes(shape.id)
+        
+        // Check modifier keys (from ModifierBar on touch devices)
+        const shiftPressed = modifierKeys.shift
+        const altPressed = modifierKeys.alt
+        
+        // Shift+tap on body: toggle selection without starting drag
+        if (shiftPressed && !isEdge) {
+          select(shape.id, true) // additive/toggle mode
+          return
+        }
+        
+        // Update scale cursor angle for edge dragging
+        if (isEdge) {
+          scaleCursorAngle.current = angle(shape.center, worldPos)
+        }
+        
+        // Determine scale anchor point for non-center scaling (Alt key)
+        let scaleAnchor: Point | undefined
+        if (isEdge && altPressed) {
+          scaleAnchor = findExactOppositePoint(shape, worldPos)
+          if (snapToGridEnabled) {
+            scaleAnchor = snapPointToGrid(scaleAnchor, POSITION_SNAP_INCREMENT)
+          }
+        }
+        
+        // For move operations, capture starting positions
+        let shapeStarts: Map<string, Point> | undefined
+        if (mode === 'move') {
+          if (isAlreadySelected && selectedIds.length > 1) {
+            shapeStarts = new Map()
+            for (const id of selectedIds) {
+              const s = shapes.find(sh => sh.id === id)
+              if (s && s.type === 'circle') {
+                shapeStarts.set(id, { ...s.center })
+              }
+            }
+          }
+        }
+        
+        // For scale operations, capture starting radii for proportional scaling
+        let shapeRadii: Map<string, { radius: number; center: Point }> | undefined
+        if (mode === 'scale' && isAlreadySelected && selectedIds.length > 1) {
+          shapeRadii = new Map()
+          for (const id of selectedIds) {
+            const s = shapes.find(sh => sh.id === id)
+            if (s && s.type === 'circle') {
+              shapeRadii.set(id, { radius: s.radius, center: { ...s.center } })
+            }
+          }
+        }
+        
+        if (!isAlreadySelected) {
+          select(shape.id, false)
+        }
+        
+        let startPoint = worldPos
+        if (isEdge) {
+          const dirToTouch = normalize(subtract(worldPos, shape.center))
+          startPoint = {
+            x: shape.center.x + dirToTouch.x * shape.radius,
+            y: shape.center.y + dirToTouch.y * shape.radius
+          }
+          if (snapToGridEnabled) {
+            startPoint = snapPointToGrid(startPoint, POSITION_SNAP_INCREMENT)
+          }
+        }
+        
+        setDragState({
+          mode,
+          shapeId: shape.id,
+          startPoint,
+          startCenter: { ...shape.center },
+          startRadius: shape.radius,
+          shapeStarts,
+          shapeRadii,
+          scaleAnchor
+        })
+      } else {
+        // Tapped empty space - start single-finger pan mode
+        e.preventDefault()
+        ts.isPanningWithSingleFinger = true
+        ts.panStartPos = { x: touch.clientX, y: touch.clientY }
+        ts.panStartPan = { ...pan }
+        
+        // Clear selection on touch start (not move) to feel responsive
+        clearSelection()
+        clearClickPreview()
+      }
+    }
+  }, [canvasRef, zoom, pan, findTargetAt, getWorldPosFromScreen, shapes, circles, shapeOrder, globalStretch, closedPath, useStartPoint, useEndPoint, mirrorConfig, selectedIds, select, clearSelection, setDragState, removeShape, toggleMirror, toggleDirection, reorderShapes, insertShapeAt, clearClickPreview, snapToGridEnabled, modifierKeys])
+  
+  // Touch move handler
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    
+    const rect = canvas.getBoundingClientRect()
+    const ts = touchState.current
+    
+    // Update touch positions
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const touch = e.changedTouches[i]
+      ts.touches.set(touch.identifier, {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+      })
+    }
+    
+    // Handle pinch-to-zoom and two-finger pan
+    if (ts.isPinching && ts.touches.size === 2) {
+      e.preventDefault()
+      const touchArray = Array.from(ts.touches.values())
+      const [t1, t2] = touchArray
+      
+      const currentDistance = getTouchDistance(t1, t2)
+      const currentCenter = getTouchCenter(t1, t2)
+      
+      if (ts.initialPinchDistance && ts.initialPinchCenter) {
+        // Calculate zoom
+        const zoomFactor = currentDistance / ts.initialPinchDistance
+        const newZoom = Math.min(10, Math.max(0.1, ts.initialZoom * zoomFactor))
+        
+        // Calculate pan (two-finger drag)
+        const panDeltaX = currentCenter.x - ts.initialPinchCenter.x
+        const panDeltaY = currentCenter.y - ts.initialPinchCenter.y
+        
+        // Apply zoom centered on pinch center
+        const zoomRatio = newZoom / ts.initialZoom
+        const newPan = {
+          x: ts.initialPinchCenter.x - (ts.initialPinchCenter.x - ts.initialPan.x) * zoomRatio + panDeltaX,
+          y: ts.initialPinchCenter.y - (ts.initialPinchCenter.y - ts.initialPan.y) * zoomRatio + panDeltaY
+        }
+        
+        setPan(newPan)
+        zoomBy(newZoom / zoom, { x: canvas.width / 2, y: canvas.height / 2 })
+      }
+      return
+    }
+    
+    // Single-finger pan (when started on empty canvas)
+    if (ts.isPanningWithSingleFinger && ts.panStartPos && ts.panStartPan && ts.activeTouchId !== null) {
+      e.preventDefault()
+      const touch = Array.from(e.changedTouches).find(t => t.identifier === ts.activeTouchId)
+      if (touch) {
+        const dx = touch.clientX - ts.panStartPos.x
+        const dy = touch.clientY - ts.panStartPos.y
+        setPan({
+          x: ts.panStartPan.x + dx,
+          y: ts.panStartPan.y + dy
+        })
+      }
+      return
+    }
+    
+    // Single touch - handle drag
+    if (ts.activeTouchId !== null && dragState) {
+      e.preventDefault()
+      
+      const touch = Array.from(e.changedTouches).find(t => t.identifier === ts.activeTouchId)
+      if (!touch) return
+      
+      const worldPos = getWorldPosFromScreen(touch.clientX, touch.clientY)
+      const shape = shapes.find(s => s.id === dragState.shapeId)
+      
+      if (!shape || shape.type !== 'circle') return
+      
+      if (dragState.mode === 'move') {
+        let dx = worldPos.x - dragState.startPoint.x
+        let dy = worldPos.y - dragState.startPoint.y
+        
+        // Apply axis constraint if Shift is held (via ModifierBar on touch devices)
+        const shiftPressed = modifierKeys.shift
+        if (shiftPressed) {
+          const constrainedDelta = constrainToNearestAxis({ x: dx, y: dy }, constraintAxes)
+          dx = constrainedDelta.x
+          dy = constrainedDelta.y
+        }
+        
+        if (dragState.shapeStarts && dragState.shapeStarts.size > 0) {
+          const updates = new Map<string, Partial<CircleShape>>()
+          for (const [id, startCenter] of dragState.shapeStarts) {
+            let newCenter = {
+              x: startCenter.x + dx,
+              y: startCenter.y + dy
+            }
+            if (snapToGridEnabled) {
+              newCenter = snapPointToGrid(newCenter, POSITION_SNAP_INCREMENT)
+            }
+            updates.set(id, { center: newCenter })
+          }
+          updateShapes(updates)
+        } else {
+          let newCenter = {
+            x: dragState.startCenter.x + dx,
+            y: dragState.startCenter.y + dy
+          }
+          if (snapToGridEnabled) {
+            newCenter = snapPointToGrid(newCenter, POSITION_SNAP_INCREMENT)
+          }
+          updateShape(dragState.shapeId, { center: newCenter })
+        }
+      } else if (dragState.mode === 'scale') {
+        const anchor = dragState.scaleAnchor
+        const shiftPressed = modifierKeys.shift
+        
+        if (!anchor) {
+          // Center-based scaling (default)
+          const distFromCenter = distance(worldPos, dragState.startCenter)
+          let newRadius = Math.max(5, distFromCenter)
+          if (snapToGridEnabled) {
+            newRadius = snapToGrid(newRadius, RADIUS_SNAP_INCREMENT)
+            newRadius = Math.max(RADIUS_SNAP_INCREMENT, newRadius)
+          }
+          
+          // Shift: scale all selected shapes proportionally
+          if (shiftPressed && dragState.shapeRadii && dragState.shapeRadii.size > 1) {
+            const scaleFactor = newRadius / dragState.startRadius
+            dragState.shapeRadii.forEach((data, id) => {
+              if (id !== dragState.shapeId) {
+                let scaledRadius = Math.max(5, data.radius * scaleFactor)
+                if (snapToGridEnabled) {
+                  scaledRadius = snapToGrid(scaledRadius, RADIUS_SNAP_INCREMENT)
+                  scaledRadius = Math.max(RADIUS_SNAP_INCREMENT, scaledRadius)
+                }
+                updateShape(id, { radius: scaledRadius })
+              }
+            })
+          }
+          
+          updateShape(dragState.shapeId, { radius: newRadius })
+        } else {
+          // Anchor-based scaling (Alt key)
+          const axisDir = normalize(subtract(dragState.startPoint, anchor))
+          const cursorVec = subtract(worldPos, anchor)
+          const t = cursorVec.x * axisDir.x + cursorVec.y * axisDir.y
+          
+          let projectedPoint = {
+            x: anchor.x + t * axisDir.x,
+            y: anchor.y + t * axisDir.y
+          }
+          
+          if (snapToGridEnabled) {
+            projectedPoint = snapPointToGrid(projectedPoint, POSITION_SNAP_INCREMENT)
+          }
+          
+          const distToProjected = distance(projectedPoint, anchor)
+          let newRadius = Math.max(5, distToProjected / 2)
+          
+          let newCenter = {
+            x: (anchor.x + projectedPoint.x) / 2,
+            y: (anchor.y + projectedPoint.y) / 2
+          }
+          
+          // Shift: scale all selected shapes proportionally
+          if (shiftPressed && dragState.shapeRadii && dragState.shapeRadii.size > 1) {
+            const scaleFactor = newRadius / dragState.startRadius
+            dragState.shapeRadii.forEach((data, id) => {
+              if (id !== dragState.shapeId) {
+                let scaledRadius = Math.max(5, data.radius * scaleFactor)
+                if (snapToGridEnabled) {
+                  scaledRadius = snapToGrid(scaledRadius, RADIUS_SNAP_INCREMENT)
+                  scaledRadius = Math.max(RADIUS_SNAP_INCREMENT, scaledRadius)
+                }
+                updateShape(id, { radius: scaledRadius })
+              }
+            })
+          }
+          
+          updateShape(dragState.shapeId, { center: newCenter, radius: newRadius })
+        }
+      } else if (dragState.mode === 'tangent-entry-offset' || dragState.mode === 'tangent-exit-offset') {
+        const angleToTouch = angle(shape.center, worldPos)
+        const clockwise = (shape.direction ?? 'cw') === 'cw'
+        const offsetDir = clockwise ? 1 : -1
+        const baseAngle = dragState.startAngle ?? 0
+        let newOffset = (angleToTouch - baseAngle) / offsetDir
+        while (newOffset > Math.PI) newOffset -= Math.PI * 2
+        while (newOffset < -Math.PI) newOffset += Math.PI * 2
+        newOffset = Math.max(-Math.PI, Math.min(Math.PI, newOffset))
+        if (snapToGridEnabled) {
+          newOffset = Math.round(newOffset / OFFSET_SNAP_INCREMENT) * OFFSET_SNAP_INCREMENT
+        }
+        if (Math.abs(newOffset) < OFFSET_SNAP_THRESHOLD) newOffset = 0
+        const offsetValue = newOffset === 0 ? undefined : newOffset
+        
+        if (dragState.mode === 'tangent-entry-offset') {
+          setEntryOffset(shape.id, offsetValue)
+        } else {
+          setExitOffset(shape.id, offsetValue)
+        }
+      } else if (dragState.mode === 'tangent-entry-length' || dragState.mode === 'tangent-exit-length') {
+        const { expandedShapes, expandedOrder } = expandMirroredCircles(circles, shapeOrder, mirrorConfig)
+        const info = computeTangentHandleInfo(shape, expandedShapes, expandedOrder, closedPath, useStartPoint, useEndPoint)
+        
+        if (info) {
+          const isEntry = dragState.mode === 'tangent-entry-length'
+          const tangentPoint = isEntry ? info.entryPoint : info.exitPoint
+          const tangentDir = isEntry ? info.entryTangentDir : info.exitTangentDir
+          
+          const orderIndex = expandedOrder.indexOf(shape.id)
+          const n = expandedOrder.length
+          const prevIndex = (orderIndex - 1 + n) % n
+          const nextIndex = (orderIndex + 1) % n
+          const prevCircle = expandedShapes.find(c => c.id === expandedOrder[prevIndex])
+          const nextCircle = expandedShapes.find(c => c.id === expandedOrder[nextIndex])
+          
+          const baseDist = isEntry
+            ? (prevCircle ? distance(prevCircle.center, shape.center) * TANGENT_DISTANCE_FACTOR : 50)
+            : (nextCircle ? distance(shape.center, nextCircle.center) * TANGENT_DISTANCE_FACTOR : 50)
+          
+          const toTouch = { x: worldPos.x - tangentPoint.x, y: worldPos.y - tangentPoint.y }
+          const projectedDist = isEntry
+            ? -(toTouch.x * tangentDir.x + toTouch.y * tangentDir.y)
+            : (toTouch.x * tangentDir.x + toTouch.y * tangentDir.y)
+          
+          let newLength = projectedDist / baseDist
+          newLength = Math.max(MIN_TANGENT_LENGTH, Math.min(MAX_TANGENT_LENGTH, newLength))
+          if (snapToGridEnabled) {
+            newLength = Math.round(newLength / LENGTH_SNAP_INCREMENT) * LENGTH_SNAP_INCREMENT
+          }
+          if (Math.abs(newLength - DEFAULT_TANGENT_LENGTH) < LENGTH_SNAP_THRESHOLD) newLength = DEFAULT_TANGENT_LENGTH
+          const lengthValue = newLength === DEFAULT_TANGENT_LENGTH ? undefined : newLength
+          
+          if (isEntry) {
+            setEntryTangentLength(shape.id, lengthValue)
+          } else {
+            setExitTangentLength(shape.id, lengthValue)
+          }
+        }
+      }
+    }
+  }, [canvasRef, dragState, shapes, circles, shapeOrder, updateShape, updateShapes, snapToGridEnabled, getWorldPosFromScreen, zoom, pan, setPan, zoomBy, closedPath, useStartPoint, useEndPoint, mirrorConfig, setEntryOffset, setExitOffset, setEntryTangentLength, setExitTangentLength, modifierKeys, constraintAxes])
+  
+  // Touch end handler
+  const handleTouchEnd = useCallback((e: TouchEvent) => {
+    const ts = touchState.current
+    const canvas = canvasRef.current
+    const rect = canvas?.getBoundingClientRect()
+    
+    // Check for multi-finger tap (undo/redo) before removing touches
+    if (ts.touches.size === 0 && ts.maxTouchCount >= 2 && rect) {
+      const elapsed = Date.now() - ts.multiTouchStartTime
+      
+      // Check if it was a quick tap (not a drag/pinch)
+      if (elapsed < MULTI_TAP_THRESHOLD) {
+        // Check if fingers didn't move much (it's a tap, not a gesture)
+        let isTap = true
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          const touch = e.changedTouches[i]
+          const startPos = ts.multiTouchStartPositions.get(touch.identifier)
+          if (startPos) {
+            const currentPos = {
+              x: touch.clientX - rect.left,
+              y: touch.clientY - rect.top
+            }
+            const moved = getTouchDistance(startPos, currentPos)
+            if (moved > MULTI_TAP_MOVE_THRESHOLD) {
+              isTap = false
+              break
+            }
+          }
+        }
+        
+        if (isTap) {
+          // 2-finger tap = undo, 3-finger tap = redo
+          if (ts.maxTouchCount === 2) {
+            undo()
+          } else if (ts.maxTouchCount >= 3) {
+            redo()
+          }
+        }
+      }
+      
+      // Reset multi-touch tracking
+      ts.maxTouchCount = 0
+      ts.multiTouchStartPositions.clear()
+      ts.multiTouchStartTime = 0
+    }
+    
+    // Remove ended touches from tracking
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const touch = e.changedTouches[i]
+      ts.touches.delete(touch.identifier)
+      
+      if (touch.identifier === ts.activeTouchId) {
+        ts.activeTouchId = null
+        ts.touchStartPos = null
+      }
+    }
+    
+    // Reset pinch state when all touches end
+    if (ts.touches.size < 2) {
+      ts.isPinching = false
+      ts.initialPinchDistance = null
+      ts.initialPinchCenter = null
+    }
+    
+    // Reset single-finger pan state and multi-touch tracking when all fingers lift
+    if (ts.touches.size === 0) {
+      ts.isPanningWithSingleFinger = false
+      ts.panStartPos = null
+      ts.panStartPan = null
+      ts.maxTouchCount = 0
+      ts.multiTouchStartPositions.clear()
+    }
+    
+    // End drag state
+    if (dragState && ts.touches.size === 0) {
+      setDragState(null)
+      clearActiveGuides()
+    }
+  }, [canvasRef, dragState, setDragState, clearActiveGuides])
+  
+  // ========== END TOUCH EVENT HANDLERS ==========
   
   // Attach event listeners
   useEffect(() => {
@@ -1353,6 +2088,12 @@ export function useCanvasInteraction(
     window.addEventListener('keydown', handleKeyDown)
     window.addEventListener('keyup', handleKeyUp)
     
+    // Touch event listeners
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false })
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false })
+    canvas.addEventListener('touchend', handleTouchEnd)
+    canvas.addEventListener('touchcancel', handleTouchEnd)
+    
     return () => {
       canvas.removeEventListener('mousedown', handleMouseDown)
       canvas.removeEventListener('mousemove', handleMouseMove)
@@ -1363,6 +2104,11 @@ export function useCanvasInteraction(
       window.removeEventListener('mouseup', handleGlobalMouseUp)
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
+      // Remove touch event listeners
+      canvas.removeEventListener('touchstart', handleTouchStart)
+      canvas.removeEventListener('touchmove', handleTouchMove)
+      canvas.removeEventListener('touchend', handleTouchEnd)
+      canvas.removeEventListener('touchcancel', handleTouchEnd)
     }
-  }, [canvasRef, handleMouseDown, handleMouseMove, handleMouseUp, handleDoubleClick, handleWheel, dragState, setDragState])
+  }, [canvasRef, handleMouseDown, handleMouseMove, handleMouseUp, handleDoubleClick, handleWheel, handleTouchStart, handleTouchMove, handleTouchEnd, dragState, setDragState])
 }

@@ -31,3 +31,10 @@
   visibility: visible;
 }
 
+/* Hide tooltips on touch devices since hover doesn't work and shortcuts aren't relevant */
+@media (pointer: coarse) {
+  .tooltip {
+    display: none;
+  }
+}
+
