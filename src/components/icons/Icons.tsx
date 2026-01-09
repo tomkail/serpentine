@@ -186,6 +186,203 @@ export function LoopPathIcon({ size = 16, className, color = 'currentColor' }: I
 }
 
 /**
+ * No Mirror Icon - Square with no symmetry lines
+ */
+export function NoMirrorIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
+  return (
+    <svg 
+      width={size} 
+      height={size} 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Square with rounded corners - same as 2-way and 4-way */}
+      <rect 
+        x="3" 
+        y="3" 
+        width="18" 
+        height="18" 
+        rx="2" 
+        stroke={color} 
+        strokeWidth="2" 
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none" 
+      />
+    </svg>
+  )
+}
+
+/**
+ * Four Way Mirror Icon - Square with two perpendicular dotted lines (4-way symmetry)
+ * Lines pass through gaps in the square
+ */
+export function FourWayMirrorIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
+  return (
+    <svg 
+      width={size} 
+      height={size} 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Four corners of the square with gaps for the cross */}
+      {/* Top-left corner */}
+      <path 
+        d="M9 3 L5 3 C3.89543 3 3 3.89543 3 5 L3 9" 
+        stroke={color} 
+        strokeWidth="2" 
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Top-right corner */}
+      <path 
+        d="M15 3 L19 3 C20.1046 3 21 3.89543 21 5 L21 9" 
+        stroke={color} 
+        strokeWidth="2" 
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Bottom-right corner */}
+      <path 
+        d="M21 15 L21 19 C21 20.1046 20.1046 21 19 21 L15 21" 
+        stroke={color} 
+        strokeWidth="2" 
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Bottom-left corner */}
+      <path 
+        d="M9 21 L5 21 C3.89543 21 3 20.1046 3 19 L3 15" 
+        stroke={color} 
+        strokeWidth="2" 
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      
+      {/* Vertical dotted line through gap */}
+      <path 
+        d="M12 2 L12 22" 
+        stroke={color} 
+        strokeWidth="2" 
+        strokeLinecap="round"
+        strokeDasharray="3 3"
+        strokeDashoffset="0"
+      />
+      {/* Horizontal dotted line through gap */}
+      <path 
+        d="M2 12 L22 12" 
+        stroke={color} 
+        strokeWidth="2" 
+        strokeLinecap="round"
+        strokeDasharray="3 3"
+        strokeDashoffset="0"
+      />
+    </svg>
+  )
+}
+
+/**
+ * Six Way Mirror Icon - Three dotted lines at 60° intervals (6-way symmetry)
+ */
+export function SixWayMirrorIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
+  return (
+    <svg 
+      width={size} 
+      height={size} 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Vertical dotted line */}
+      <path 
+        d="M12 2 L12 22" 
+        stroke={color} 
+        strokeWidth="2" 
+        strokeLinecap="round"
+        strokeDasharray="3 3"
+        strokeDashoffset="0"
+      />
+      {/* Diagonal dotted line (60°) - top-right to bottom-left */}
+      <path 
+        d="M20.928 6.5 L3.072 17.5" 
+        stroke={color} 
+        strokeWidth="2" 
+        strokeLinecap="round"
+        strokeDasharray="3 3"
+        strokeDashoffset="0"
+      />
+      {/* Diagonal dotted line (120°) - top-left to bottom-right */}
+      <path 
+        d="M3.072 6.5 L20.928 17.5" 
+        stroke={color} 
+        strokeWidth="2" 
+        strokeLinecap="round"
+        strokeDasharray="3 3"
+        strokeDashoffset="0"
+      />
+    </svg>
+  )
+}
+
+/**
+ * Eight Way Mirror Icon - Four dotted lines at 45° intervals (8-way symmetry)
+ */
+export function EightWayMirrorIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
+  return (
+    <svg 
+      width={size} 
+      height={size} 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Vertical dotted line */}
+      <path 
+        d="M12 2 L12 22" 
+        stroke={color} 
+        strokeWidth="2" 
+        strokeLinecap="round"
+        strokeDasharray="3 3"
+        strokeDashoffset="0"
+      />
+      {/* Horizontal dotted line */}
+      <path 
+        d="M2 12 L22 12" 
+        stroke={color} 
+        strokeWidth="2" 
+        strokeLinecap="round"
+        strokeDasharray="3 3"
+        strokeDashoffset="0"
+      />
+      {/* Diagonal dotted line (45°) - top-left to bottom-right through center */}
+      <path 
+        d="M2.929 2.929 L21.071 21.071" 
+        stroke={color} 
+        strokeWidth="2" 
+        strokeLinecap="round"
+        strokeDasharray="3 3"
+        strokeDashoffset="0"
+      />
+      {/* Diagonal dotted line (135°) - top-right to bottom-left through center */}
+      <path 
+        d="M21.071 2.929 L2.929 21.071" 
+        stroke={color} 
+        strokeWidth="2" 
+        strokeLinecap="round"
+        strokeDasharray="3 3"
+        strokeDashoffset="0"
+      />
+    </svg>
+  )
+}
+
+/**
  * Open Path Icon - Open path with both arcs (legacy, uses PathModeIcon)
  */
 export function OpenPathIcon({ size = 16, className, color = 'currentColor' }: IconProps) {

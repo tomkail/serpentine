@@ -108,7 +108,7 @@ const createDefaultDocument = (): Pick<DocumentState, 'shapes' | 'shapeOrder' | 
     closedPath: doc.settings?.closedPath ?? false,
     useStartPoint: doc.settings?.useStartPoint ?? true,
     useEndPoint: doc.settings?.useEndPoint ?? true,
-    mirrorConfig: MIRROR_PRESETS[0].config, // Default to 2-way vertical
+    mirrorConfig: MIRROR_PRESETS[0].config, // Default to None
     fileName: null,
     isDirty: false
   }
@@ -422,6 +422,7 @@ export const useDocumentStore = create<DocumentState>()(
           closedPath: data.settings?.closedPath ?? true,  // Default to closed for backwards compatibility
           useStartPoint: data.settings?.useStartPoint ?? true,  // Default to true for backwards compatibility
           useEndPoint: data.settings?.useEndPoint ?? true,  // Default to true for backwards compatibility
+          mirrorConfig: data.settings?.mirrorConfig ?? MIRROR_PRESETS[0].config,  // Default to None
           fileName: data.name,
           isDirty: false
         })

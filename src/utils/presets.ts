@@ -56,7 +56,8 @@ const guitar: Preset = {
     ],
     pathOrder: ['upper-bout', 'waist', 'lower-bout'],
     settings: {
-      closedPath: true
+      closedPath: true,
+      mirrorConfig: { planeCount: 1, startAngle: Math.PI / 2 }  // 2-way vertical
     }
   }
 }
@@ -79,6 +80,7 @@ const mugello: Preset = {
         center: { x: 120, y: 160 },
         radius: 40,
         direction: 'cw',
+        mirrored: true,
         entryOffset: -0.08726646259971647
       },
       {
@@ -87,7 +89,8 @@ const mugello: Preset = {
         name: 'Luco (T2)',
         center: { x: 240, y: 100 },
         radius: 40,
-        direction: 'ccw'
+        direction: 'ccw',
+        mirrored: true
       },
       {
         id: 'poggio-secco',
@@ -95,7 +98,8 @@ const mugello: Preset = {
         name: 'Poggio Secco (T3)',
         center: { x: 340, y: 80 },
         radius: 50,
-        direction: 'cw'
+        direction: 'cw',
+        mirrored: true
       },
       {
         id: 'materassi',
@@ -103,7 +107,8 @@ const mugello: Preset = {
         name: 'Materassi (T4)',
         center: { x: 580, y: 100 },
         radius: 40,
-        direction: 'ccw'
+        direction: 'ccw',
+        mirrored: true
       },
       {
         id: 'borgo',
@@ -111,7 +116,8 @@ const mugello: Preset = {
         name: 'Borgo San Lorenzo (T5)',
         center: { x: 700, y: 140 },
         radius: 50,
-        direction: 'cw'
+        direction: 'cw',
+        mirrored: true
       },
       {
         id: 'casanova',
@@ -119,7 +125,8 @@ const mugello: Preset = {
         name: 'Casanova (T6)',
         center: { x: 880, y: 260 },
         radius: 60,
-        direction: 'cw'
+        direction: 'cw',
+        mirrored: true
       },
       {
         id: 'savelli',
@@ -127,7 +134,8 @@ const mugello: Preset = {
         name: 'Savelli (T7)',
         center: { x: 1000, y: 340 },
         radius: 50,
-        direction: 'ccw'
+        direction: 'ccw',
+        mirrored: true
       },
       {
         id: 'arrabbiata1',
@@ -135,7 +143,8 @@ const mugello: Preset = {
         name: 'Arrabbiata 1 (T8)',
         center: { x: 1120, y: 480 },
         radius: 70,
-        direction: 'cw'
+        direction: 'cw',
+        mirrored: true
       },
       {
         id: 'arrabbiata2',
@@ -143,7 +152,8 @@ const mugello: Preset = {
         name: 'Arrabbiata 2 (T9)',
         center: { x: 1080, y: 640 },
         radius: 70,
-        direction: 'cw'
+        direction: 'cw',
+        mirrored: true
       },
       {
         id: 'scarperia',
@@ -151,7 +161,8 @@ const mugello: Preset = {
         name: 'Scarperia (T10)',
         center: { x: 880, y: 660 },
         radius: 40,
-        direction: 'cw'
+        direction: 'cw',
+        mirrored: true
       },
       {
         id: 'palagio',
@@ -159,7 +170,8 @@ const mugello: Preset = {
         name: 'Palagio (T11)',
         center: { x: 780, y: 620 },
         radius: 50,
-        direction: 'ccw'
+        direction: 'ccw',
+        mirrored: true
       },
       {
         id: 'correntaio',
@@ -167,7 +179,8 @@ const mugello: Preset = {
         name: 'Correntaio (T12)',
         center: { x: 500, y: 480 },
         radius: 60,
-        direction: 'cw'
+        direction: 'cw',
+        mirrored: true
       },
       {
         id: 'biondetti1',
@@ -175,7 +188,8 @@ const mugello: Preset = {
         name: 'Biondetti 1 (T13)',
         center: { x: 640, y: 420 },
         radius: 50,
-        direction: 'ccw'
+        direction: 'ccw',
+        mirrored: true
       },
       {
         id: 'biondetti2',
@@ -183,7 +197,8 @@ const mugello: Preset = {
         name: 'Biondetti 2 (T14)',
         center: { x: 700, y: 560 },
         radius: 90,
-        direction: 'cw'
+        direction: 'cw',
+        mirrored: true
       },
       {
         id: 'bucine',
@@ -192,6 +207,7 @@ const mugello: Preset = {
         center: { x: 1040, y: 560 },
         radius: 80,
         direction: 'ccw',
+        mirrored: true,
         exitOffset: 0.08726646259971647,
         exitTangentLength: 1.1
       }
@@ -237,6 +253,7 @@ const heart: Preset = {
         center: { x: 0, y: 200 },
         radius: 10,
         direction: 'ccw',
+        mirrored: true,
         exitOffset: -0.17453292519943295,
         entryOffset: 0.17453292519943295
       },
@@ -281,7 +298,8 @@ const serpentine: Preset = {
         name: 'Circle 1',
         center: { x: -40, y: -20 },
         radius: 90,
-        direction: 'cw'
+        direction: 'cw',
+        mirrored: true
       },
       {
         id: 'default-c2',
@@ -290,6 +308,7 @@ const serpentine: Preset = {
         center: { x: 10, y: 0 },
         radius: 90,
         direction: 'cw',
+        mirrored: true,
         exitOffset: -2.2689280275926285
       },
       {
@@ -298,7 +317,8 @@ const serpentine: Preset = {
         name: 'Circle 3',
         center: { x: 120, y: 160 },
         radius: 90,
-        direction: 'ccw'
+        direction: 'ccw',
+        mirrored: true
       },
       {
         id: 'default-c4',
@@ -307,6 +327,7 @@ const serpentine: Preset = {
         center: { x: -80, y: 140 },
         radius: 110,
         direction: 'ccw',
+        mirrored: true,
         entryOffset: 1.9198621771937625
       }
     ],
@@ -336,7 +357,8 @@ const duck: Preset = {
         name: 'Body',
         center: { x: 80, y: -20 },
         radius: 100,
-        direction: 'cw'
+        direction: 'cw',
+        mirrored: true
       },
       {
         id: 'duck-head',
@@ -345,6 +367,7 @@ const duck: Preset = {
         center: { x: 40, y: -150 },
         radius: 60,
         direction: 'ccw',
+        mirrored: true,
         exitOffset: 0.7853981633974483
       },
       {
@@ -353,7 +376,8 @@ const duck: Preset = {
         name: 'Tail',
         center: { x: 60, y: 90 },
         radius: 140,
-        direction: 'ccw'
+        direction: 'ccw',
+        mirrored: true
       },
       {
         id: 'duck-neck',
@@ -362,6 +386,7 @@ const duck: Preset = {
         center: { x: 220, y: -140 },
         radius: 120,
         direction: 'cw',
+        mirrored: true,
         entryOffset: 1.48352986419518
       }
     ],
@@ -391,7 +416,8 @@ export const defaultPreset: Preset = {
         name: 'Circle 1',
         center: { x: 0, y: -80 },
         radius: 120,
-        direction: 'cw'
+        direction: 'cw',
+        mirrored: true
       },
       {
         id: 'default-c2',
@@ -400,6 +426,7 @@ export const defaultPreset: Preset = {
         center: { x: 210, y: -140 },
         radius: 60,
         direction: 'ccw',
+        mirrored: true,
         entryOffset: Math.PI / 2
       },
       {
@@ -408,7 +435,8 @@ export const defaultPreset: Preset = {
         name: 'Circle 3',
         center: { x: 180, y: 110 },
         radius: 140,
-        direction: 'ccw'
+        direction: 'ccw',
+        mirrored: true
       },
       {
         id: 'default-c4',
@@ -417,6 +445,7 @@ export const defaultPreset: Preset = {
         center: { x: 0, y: 130 },
         radius: 120,
         direction: 'ccw',
+        mirrored: true,
         entryOffset: Math.PI / 2
       }
     ],

@@ -166,6 +166,7 @@ export interface SerpentineDocument {
     closedPath?: boolean    // Whether the path loops back to start (default true)
     useStartPoint?: boolean // Whether to use tangent point on first circle (when not looping)
     useEndPoint?: boolean   // Whether to use tangent point on last circle (when not looping)
+    mirrorConfig?: MirrorConfig  // Mirror configuration (planeCount + startAngle)
   }
   viewport?: {
     pan: Point

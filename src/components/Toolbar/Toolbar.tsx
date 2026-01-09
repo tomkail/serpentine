@@ -14,10 +14,6 @@ import {
   Scan as FrameIcon,
   FlipHorizontal as VerticalAxisIcon,
   FlipVertical as HorizontalAxisIcon,
-  Maximize2 as FourWayIcon,
-  Hexagon as SixWayIcon,
-  Octagon as EightWayIcon,
-  Circle as NoMirrorIcon,
   Ruler as RulerIcon,
   Undo2 as UndoIcon,
   Redo2 as RedoIcon,
@@ -26,7 +22,13 @@ import {
   Settings as SettingsIcon
 } from 'lucide-react'
 import { 
-  PathModeIcon, SmartGuidesIcon, type PathMode 
+  PathModeIcon, 
+  SmartGuidesIcon, 
+  NoMirrorIcon,
+  FourWayMirrorIcon,
+  SixWayMirrorIcon,
+  EightWayMirrorIcon,
+  type PathMode 
 } from '../icons/Icons'
 import { Tooltip } from '../Tooltip/Tooltip'
 import styles from './Toolbar.module.css'
@@ -60,11 +62,11 @@ function getMirrorIcon(config: MirrorConfig) {
     const isVertical = Math.abs(startAngle - Math.PI / 2) < 0.01
     return isVertical ? <VerticalAxisIcon size={20} /> : <HorizontalAxisIcon size={20} />
   } else if (planeCount === 2) {
-    return <FourWayIcon size={20} />
+    return <FourWayMirrorIcon size={20} />
   } else if (planeCount === 3) {
-    return <SixWayIcon size={20} />
+    return <SixWayMirrorIcon size={20} />
   } else if (planeCount >= 4) {
-    return <EightWayIcon size={20} />
+    return <EightWayMirrorIcon size={20} />
   }
   
   return <NoMirrorIcon size={20} />
@@ -324,17 +326,15 @@ export function Toolbar() {
             <PathModeIcon size={20} mode={pathMode} />
           </button>
         </Tooltip>
-        {hasMirroredShapes && (
-          <Tooltip text={getMirrorPresetName(mirrorConfig) + " - click to cycle"}>
-            <button
-              className={styles.iconToggle}
-              onClick={cycleMirrorPreset}
-              aria-label={`Mirror mode: ${getMirrorPresetName(mirrorConfig)}`}
-            >
-              {getMirrorIcon(mirrorConfig)}
-            </button>
-          </Tooltip>
-        )}
+        <Tooltip text={getMirrorPresetName(mirrorConfig) + " - click to cycle"}>
+          <button
+            className={`${styles.iconToggle} ${hasMirroredShapes ? styles.active : ''}`}
+            onClick={cycleMirrorPreset}
+            aria-label={`Mirror mode: ${getMirrorPresetName(mirrorConfig)}`}
+          >
+            {getMirrorIcon(mirrorConfig)}
+          </button>
+        </Tooltip>
       </div>
       
       <div className={styles.separator} />
