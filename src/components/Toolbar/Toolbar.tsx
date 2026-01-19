@@ -24,7 +24,8 @@ import {
 } from 'lucide-react'
 import { 
   PathModeIcon, 
-  SmartGuidesIcon, 
+  SmartGuidesIcon,
+  CircleSnapIcon,
   NoMirrorIcon,
   FourWayMirrorIcon,
   SixWayMirrorIcon,
@@ -179,6 +180,8 @@ export function Toolbar() {
   const toggleSnap = useSettingsStore(state => state.toggleSnap)
   const smartGuides = useSettingsStore(state => state.smartGuides)
   const toggleSmartGuides = useSettingsStore(state => state.toggleSmartGuides)
+  const circleSnapping = useSettingsStore(state => state.circleSnapping)
+  const toggleCircleSnapping = useSettingsStore(state => state.toggleCircleSnapping)
   const measurementMode = useSettingsStore(state => state.measurementMode)
   const cycleMeasurementMode = useSettingsStore(state => state.cycleMeasurementMode)
   const isolatePath = useSettingsStore(state => state.isolatePath)
@@ -355,6 +358,15 @@ export function Toolbar() {
             aria-label={`Snap to grid: ${snapToGrid ? 'on' : 'off'}`}
           >
             <MagnetIcon size={18} />
+          </button>
+        </Tooltip>
+        <Tooltip text="Circle snap" shortcut="C">
+          <button
+            className={`${styles.iconToggle} ${circleSnapping ? styles.active : ''}`}
+            onClick={toggleCircleSnapping}
+            aria-label={`Circle snap: ${circleSnapping ? 'on' : 'off'}`}
+          >
+            <CircleSnapIcon size={18} />
           </button>
         </Tooltip>
         <Tooltip text="Smart guides">

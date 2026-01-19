@@ -34,9 +34,12 @@ import {
   MIN_TANGENT_LENGTH,
   MAX_TANGENT_LENGTH,
   TANGENT_DISTANCE_FACTOR,
-  SMART_GUIDE_SNAP_THRESHOLD
+  SMART_GUIDE_SNAP_THRESHOLD,
+  CIRCLE_EDGE_SNAP_THRESHOLD,
+  CIRCLE_EDGE_GRID_SNAP_THRESHOLD
 } from '../../constants'
 import { computeSmartGuides } from '../../geometry/smartGuides'
+import { computeCircleEdgeSnap, findStickyGridPointOnRing, findStickyGuidePointOnRing, resetCircleEdgeSnapState } from '../../geometry/circleEdgeSnap'
 import { getScaleCursor, getCursorForTarget, getMarqueeCursor } from './cursorUtils'
 
 /**
@@ -200,6 +203,7 @@ export function useCanvasInteraction(
   
   const snapToGridEnabled = useSettingsStore(state => state.snapToGrid)
   const smartGuidesEnabled = useSettingsStore(state => state.smartGuides)
+  const circleSnappingEnabled = useSettingsStore(state => state.circleSnapping)
   
   // Memoize circles array to avoid repeated filtering
   const circles = useMemo(
@@ -279,57 +283,6 @@ export function useCanvasInteraction(
     // Get expanded shapes/order (including mirrored circles)
     const { expandedShapes, expandedOrder } = expandMirroredCircles(circles, shapeOrder, mirrorConfig)
     
-    // First check tangent handles on selected shapes (highest priority)
-    for (const shape of shapes) {
-      if (shape.type === 'circle' && selectedIds.includes(shape.id)) {
-        const tangentHandle = getTangentHandleAt(shape, expandedShapes, expandedOrder, worldPos, handleTolerance, closedPath, useStartPoint, useEndPoint)
-        if (tangentHandle) {
-          const hoverTarget: HoverTarget = { 
-            type: tangentHandle as 'entry-offset' | 'exit-offset' | 'entry-length' | 'exit-length' | 'entry-offset-slot' | 'exit-offset-slot' | 'entry-length-slot' | 'exit-length-slot', 
-            shapeId: shape.id 
-          }
-          return { shape, hoverTarget, tangentHandle }
-        }
-      }
-    }
-    
-    // Check index dots and action row icons on all circles
-    for (const shape of shapes) {
-      if (shape.type === 'circle') {
-        // Check index dot grid (always visible)
-        const dotIndex = getIndexDotAt(shape, worldPos, shapeOrder.length, zoom)
-        if (dotIndex !== null) {
-          return { 
-            shape, 
-            hoverTarget: { type: 'index-dot', shapeId: shape.id, dotIndex }, 
-            tangentHandle: null 
-          }
-        }
-        
-        // Check action row icons (only on selected shapes)
-        if (selectedIds.includes(shape.id)) {
-          // Check mirror icon (always available)
-          if (isOnMirrorIcon(shape, worldPos, zoom)) {
-            return { 
-              shape, 
-              hoverTarget: { type: 'mirror-icon', shapeId: shape.id }, 
-              tangentHandle: null 
-            }
-          }
-          
-          // Check delete icon (only if more than 2 circles exist)
-          const circleCount = shapes.filter(s => s.type === 'circle').length
-          if (circleCount > 2 && isOnDeleteIcon(shape, worldPos, zoom, true)) {
-            return { 
-              shape, 
-              hoverTarget: { type: 'delete-icon', shapeId: shape.id }, 
-              tangentHandle: null 
-            }
-          }
-        }
-      }
-    }
-    
     // Helper to check a single shape
     // All hit zones are proportional to radius for consistent behavior at any size/zoom
     // Hit zones from outside to inside:
@@ -371,22 +324,94 @@ export function useCanvasInteraction(
       return null
     }
     
-    // Check selected shapes first (they're rendered on top)
-    for (let i = shapes.length - 1; i >= 0; i--) {
-      const shape = shapes[i]
-      if (shape.type === 'circle' && selectedIds.includes(shape.id)) {
-        const hit = checkShape(shape)
-        if (hit) return hit
+    // Helper to check UI elements (tangent handles, action icons, index dots)
+    const checkUIElements = (shape: CircleShape, isSelected: boolean): { 
+      shape: CircleShape
+      hoverTarget: HoverTarget
+      tangentHandle: TangentHandleType
+    } | null => {
+      // Check tangent handles (only on selected shapes)
+      if (isSelected) {
+        const tangentHandle = getTangentHandleAt(shape, expandedShapes, expandedOrder, worldPos, handleTolerance, closedPath, useStartPoint, useEndPoint)
+        if (tangentHandle) {
+          const hoverTarget: HoverTarget = { 
+            type: tangentHandle as 'entry-offset' | 'exit-offset' | 'entry-length' | 'exit-length' | 'entry-offset-slot' | 'exit-offset-slot' | 'entry-length-slot' | 'exit-length-slot', 
+            shapeId: shape.id 
+          }
+          return { shape, hoverTarget, tangentHandle }
+        }
       }
+      
+      // Check index dot grid
+      const dotIndex = getIndexDotAt(shape, worldPos, shapeOrder.length, zoom)
+      if (dotIndex !== null) {
+        return { 
+          shape, 
+          hoverTarget: { type: 'index-dot', shapeId: shape.id, dotIndex }, 
+          tangentHandle: null 
+        }
+      }
+      
+      // Check action row icons (only on selected shapes)
+      if (isSelected) {
+        // Check mirror icon (always available)
+        if (isOnMirrorIcon(shape, worldPos, zoom)) {
+          return { 
+            shape, 
+            hoverTarget: { type: 'mirror-icon', shapeId: shape.id }, 
+            tangentHandle: null 
+          }
+        }
+        
+        // Check delete icon (only if more than 2 circles exist)
+        const circleCount = shapes.filter(s => s.type === 'circle').length
+        if (circleCount > 2 && isOnDeleteIcon(shape, worldPos, zoom, true)) {
+          return { 
+            shape, 
+            hoverTarget: { type: 'delete-icon', shapeId: shape.id }, 
+            tangentHandle: null 
+          }
+        }
+      }
+      
+      return null
     }
     
-    // Then check non-selected shapes
-    for (let i = shapes.length - 1; i >= 0; i--) {
-      const shape = shapes[i]
-      if (shape.type === 'circle' && !selectedIds.includes(shape.id)) {
-        const hit = checkShape(shape)
-        if (hit) return hit
-      }
+    // Hit testing must match the visual draw order in ShapeRenderer:
+    // 1. Shapes are sorted by radius (smaller on top)
+    // 2. Selected shapes are drawn on top of non-selected shapes
+    // So we check: smallest selected → largest selected → smallest non-selected → largest non-selected
+    
+    // Get circle shapes only
+    const circleShapes = shapes.filter((s): s is CircleShape => s.type === 'circle')
+    
+    // Sort by radius ascending (smallest = topmost = checked first)
+    const sortedByRadius = [...circleShapes].sort((a, b) => a.radius - b.radius)
+    
+    // First pass: check selected shapes (they're rendered on top) in radius order (smallest first)
+    for (const shape of sortedByRadius) {
+      if (!selectedIds.includes(shape.id)) continue
+      
+      // Check UI elements first (highest priority within this shape)
+      const uiHit = checkUIElements(shape, true)
+      if (uiHit) return uiHit
+      
+      // Then check shape zones
+      const hit = checkShape(shape)
+      if (hit) return hit
+    }
+    
+    // Second pass: check non-selected shapes in radius order (smallest first)
+    for (const shape of sortedByRadius) {
+      if (selectedIds.includes(shape.id)) continue
+      
+      // Check UI elements first (index dots are always visible)
+      const uiHit = checkUIElements(shape, false)
+      if (uiHit) return uiHit
+      
+      // Then check shape zones
+      const hit = checkShape(shape)
+      if (hit) return hit
     }
     
     return { shape: null, hoverTarget: null, tangentHandle: null }
@@ -821,6 +846,11 @@ export function useCanvasInteraction(
           }
         }
         
+        // Reset circle edge snap hysteresis when starting a new drag
+        if (mode === 'move') {
+          resetCircleEdgeSnapState()
+        }
+        
         setDragState({
           mode,
           shapeId: shape.id,
@@ -990,12 +1020,82 @@ export function useCanvasInteraction(
         // Multi-select move: update all shapes that were selected when drag started
         if (dragState.shapeStarts && dragState.shapeStarts.size > 0) {
           let snapOffset = { x: 0, y: 0 }
+          const draggedIds = new Set(dragState.shapeStarts.keys())
+          const otherCircles = circles.filter(c => !draggedIds.has(c.id))
           
-          // Compute smart guides if enabled (but not when axis-constrained)
-          if (smartGuidesEnabled && !e.shiftKey) {
+          // For multi-select, use the primary dragged shape for circle edge snapping
+          const primaryShape = shapes.find(s => s.id === dragState.shapeId) as CircleShape | undefined
+          const primaryStartCenter = dragState.shapeStarts.get(dragState.shapeId)
+          
+          let isOnCircleRing = false
+          let circleEdgeOffset = { x: 0, y: 0 }
+          
+          // Circle edge snapping for the primary shape
+          if (circleSnappingEnabled && primaryShape && primaryStartCenter) {
+            const tentativeCenter = {
+              x: primaryStartCenter.x + dx,
+              y: primaryStartCenter.y + dy
+            }
+            
+            const edgeSnapResult = computeCircleEdgeSnap(
+              tentativeCenter,
+              primaryShape.radius,
+              otherCircles,
+              zoom,
+              CIRCLE_EDGE_SNAP_THRESHOLD
+            )
+            
+            if (edgeSnapResult.isOnRing && edgeSnapResult.snappedToCircle && edgeSnapResult.snapAngle !== null) {
+              isOnCircleRing = true
+              
+              // Calculate the offset to apply to all shapes
+              circleEdgeOffset = {
+                x: edgeSnapResult.snappedCenter.x - tentativeCenter.x,
+                y: edgeSnapResult.snappedCenter.y - tentativeCenter.y
+              }
+              
+              // Check for sticky grid points on the ring
+              const stickyGridPoint = findStickyGridPointOnRing(
+                edgeSnapResult.snappedToCircle.center,
+                primaryShape.radius + edgeSnapResult.snappedToCircle.radius,
+                edgeSnapResult.snapAngle,
+                POSITION_SNAP_INCREMENT,
+                CIRCLE_EDGE_GRID_SNAP_THRESHOLD,
+                zoom
+              )
+              
+              if (stickyGridPoint) {
+                circleEdgeOffset = {
+                  x: stickyGridPoint.x - tentativeCenter.x,
+                  y: stickyGridPoint.y - tentativeCenter.y
+                }
+              } else if (smartGuidesEnabled && !e.shiftKey) {
+                // Check for sticky smart guide positions on the ring
+                const stickyGuidePoint = findStickyGuidePointOnRing(
+                  edgeSnapResult.snappedToCircle,
+                  primaryShape.radius,
+                  edgeSnapResult.snapAngle,
+                  otherCircles,
+                  CIRCLE_EDGE_GRID_SNAP_THRESHOLD,
+                  zoom
+                )
+                
+                if (stickyGuidePoint) {
+                  circleEdgeOffset = {
+                    x: stickyGuidePoint.x - tentativeCenter.x,
+                    y: stickyGuidePoint.y - tentativeCenter.y
+                  }
+                }
+              }
+              
+              clearActiveGuides()
+            }
+          }
+          
+          // If not on circle ring, compute smart guides
+          if (!isOnCircleRing && smartGuidesEnabled && !e.shiftKey) {
             // Build preview positions for smart guides
             const draggedCirclesPreviews: CircleShape[] = []
-            const draggedIds = new Set(dragState.shapeStarts.keys())
             
             for (const [id, startCenter] of dragState.shapeStarts) {
               const originalShape = shapes.find(s => s.id === id) as CircleShape | undefined
@@ -1010,29 +1110,37 @@ export function useCanvasInteraction(
               }
             }
             
-            // Get other circles (not being dragged)
-            const otherCircles = circles.filter(c => !draggedIds.has(c.id))
-            
             // Compute smart guides (threshold in world coords)
             const smartGuideThreshold = SMART_GUIDE_SNAP_THRESHOLD / zoom
             const result = computeSmartGuides(draggedCirclesPreviews, otherCircles, smartGuideThreshold)
             setActiveGuides(result.guides)
             snapOffset = result.snapOffset
-          } else {
+          } else if (!isOnCircleRing) {
             clearActiveGuides()
           }
           
-          // Apply updates with smart guide snapping
+          // Apply updates
           const updates = new Map<string, Partial<CircleShape>>()
           
           for (const [id, startCenter] of dragState.shapeStarts) {
-            let newCenter = {
-              x: startCenter.x + dx + snapOffset.x,
-              y: startCenter.y + dy + snapOffset.y
-            }
+            let newCenter: Point
             
-            if (snapToGridEnabled) {
-              newCenter = snapPointToGrid(newCenter, POSITION_SNAP_INCREMENT)
+            if (isOnCircleRing) {
+              // Apply circle edge offset
+              newCenter = {
+                x: startCenter.x + dx + circleEdgeOffset.x,
+                y: startCenter.y + dy + circleEdgeOffset.y
+              }
+            } else {
+              // Apply smart guide offset and grid snapping
+              newCenter = {
+                x: startCenter.x + dx + snapOffset.x,
+                y: startCenter.y + dy + snapOffset.y
+              }
+              
+              if (snapToGridEnabled) {
+                newCenter = snapPointToGrid(newCenter, POSITION_SNAP_INCREMENT)
+              }
             }
             
             updates.set(id, { center: newCenter })
@@ -1046,18 +1154,72 @@ export function useCanvasInteraction(
             y: dragState.startCenter.y + dy
           }
           
-          // Compute smart guides if enabled (but not when axis-constrained)
-          if (smartGuidesEnabled && !e.shiftKey) {
-            // Get the dragged circle with preview position
-            const draggedCircle = circles.find(c => c.id === dragState.shapeId)
-            if (draggedCircle) {
+          // Get the dragged circle
+          const draggedCircle = circles.find(c => c.id === dragState.shapeId)
+          if (!draggedCircle) {
+            updateShape(dragState.shapeId, { center: newCenter })
+            return
+          }
+          
+          // Get other circles (not being dragged)
+          const otherCircles = circles.filter(c => c.id !== dragState.shapeId)
+          
+          // Circle edge snapping (highest priority when enabled)
+          let isOnCircleRing = false
+          if (circleSnappingEnabled) {
+            const edgeSnapResult = computeCircleEdgeSnap(
+              newCenter,
+              draggedCircle.radius,
+              otherCircles,
+              zoom,
+              CIRCLE_EDGE_SNAP_THRESHOLD
+            )
+            
+            if (edgeSnapResult.isOnRing && edgeSnapResult.snappedToCircle && edgeSnapResult.snapAngle !== null) {
+              isOnCircleRing = true
+              newCenter = edgeSnapResult.snappedCenter
+              
+              // Check for sticky grid points on the ring
+              const stickyGridPoint = findStickyGridPointOnRing(
+                edgeSnapResult.snappedToCircle.center,
+                draggedCircle.radius + edgeSnapResult.snappedToCircle.radius,
+                edgeSnapResult.snapAngle,
+                POSITION_SNAP_INCREMENT,
+                CIRCLE_EDGE_GRID_SNAP_THRESHOLD,
+                zoom
+              )
+              
+              if (stickyGridPoint) {
+                newCenter = stickyGridPoint
+              } else if (smartGuidesEnabled && !e.shiftKey) {
+                // Check for sticky smart guide positions on the ring
+                const stickyGuidePoint = findStickyGuidePointOnRing(
+                  edgeSnapResult.snappedToCircle,
+                  draggedCircle.radius,
+                  edgeSnapResult.snapAngle,
+                  otherCircles,
+                  CIRCLE_EDGE_GRID_SNAP_THRESHOLD,
+                  zoom
+                )
+                
+                if (stickyGuidePoint) {
+                  newCenter = stickyGuidePoint
+                }
+              }
+              
+              // Clear smart guides when on circle ring (different visual feedback)
+              clearActiveGuides()
+            }
+          }
+          
+          // If not on a circle ring, apply normal snapping
+          if (!isOnCircleRing) {
+            // Compute smart guides if enabled (but not when axis-constrained)
+            if (smartGuidesEnabled && !e.shiftKey) {
               const draggedCirclePreview: CircleShape = {
                 ...draggedCircle,
                 center: newCenter
               }
-              
-              // Get other circles (not being dragged)
-              const otherCircles = circles.filter(c => c.id !== dragState.shapeId)
               
               // Compute smart guides (threshold in world coords)
               const smartGuideThreshold = SMART_GUIDE_SNAP_THRESHOLD / zoom
@@ -1069,13 +1231,13 @@ export function useCanvasInteraction(
                 x: newCenter.x + snapOffset.x,
                 y: newCenter.y + snapOffset.y
               }
+            } else {
+              clearActiveGuides()
             }
-          } else {
-            clearActiveGuides()
-          }
-          
-          if (snapToGridEnabled) {
-            newCenter = snapPointToGrid(newCenter, POSITION_SNAP_INCREMENT)
+            
+            if (snapToGridEnabled) {
+              newCenter = snapPointToGrid(newCenter, POSITION_SNAP_INCREMENT)
+            }
           }
           
           updateShape(dragState.shapeId, { center: newCenter })
@@ -1347,6 +1509,8 @@ export function useCanvasInteraction(
     if (!canvas) return
     
     if (dragState) {
+      // Reset circle edge snap hysteresis when drag ends
+      resetCircleEdgeSnapState()
       setDragState(null)
       clearActiveGuides()
       canvas.style.cursor = ''
@@ -1671,6 +1835,11 @@ export function useCanvasInteraction(
           }
         }
         
+        // Reset circle edge snap hysteresis when starting a new drag
+        if (mode === 'move') {
+          resetCircleEdgeSnapState()
+        }
+        
         setDragState({
           mode,
           shapeId: shape.id,
@@ -1783,26 +1952,119 @@ export function useCanvasInteraction(
         }
         
         if (dragState.shapeStarts && dragState.shapeStarts.size > 0) {
+          // Multi-select touch move
+          const draggedIds = new Set(dragState.shapeStarts.keys())
+          const otherCircles = circles.filter(c => !draggedIds.has(c.id))
+          const primaryShape = shapes.find(s => s.id === dragState.shapeId) as CircleShape | undefined
+          const primaryStartCenter = dragState.shapeStarts.get(dragState.shapeId)
+          
+          let circleEdgeOffset = { x: 0, y: 0 }
+          let isOnCircleRing = false
+          
+          // Circle edge snapping for the primary shape
+          if (circleSnappingEnabled && primaryShape && primaryStartCenter) {
+            const tentativeCenter = {
+              x: primaryStartCenter.x + dx,
+              y: primaryStartCenter.y + dy
+            }
+            
+            const edgeSnapResult = computeCircleEdgeSnap(
+              tentativeCenter,
+              primaryShape.radius,
+              otherCircles,
+              zoom,
+              CIRCLE_EDGE_SNAP_THRESHOLD
+            )
+            
+            if (edgeSnapResult.isOnRing && edgeSnapResult.snappedToCircle && edgeSnapResult.snapAngle !== null) {
+              isOnCircleRing = true
+              circleEdgeOffset = {
+                x: edgeSnapResult.snappedCenter.x - tentativeCenter.x,
+                y: edgeSnapResult.snappedCenter.y - tentativeCenter.y
+              }
+              
+              // Check for sticky grid points on the ring
+              const stickyGridPoint = findStickyGridPointOnRing(
+                edgeSnapResult.snappedToCircle.center,
+                primaryShape.radius + edgeSnapResult.snappedToCircle.radius,
+                edgeSnapResult.snapAngle,
+                POSITION_SNAP_INCREMENT,
+                CIRCLE_EDGE_GRID_SNAP_THRESHOLD,
+                zoom
+              )
+              
+              if (stickyGridPoint) {
+                circleEdgeOffset = {
+                  x: stickyGridPoint.x - tentativeCenter.x,
+                  y: stickyGridPoint.y - tentativeCenter.y
+                }
+              }
+            }
+          }
+          
           const updates = new Map<string, Partial<CircleShape>>()
           for (const [id, startCenter] of dragState.shapeStarts) {
-            let newCenter = {
-              x: startCenter.x + dx,
-              y: startCenter.y + dy
-            }
-            if (snapToGridEnabled) {
-              newCenter = snapPointToGrid(newCenter, POSITION_SNAP_INCREMENT)
+            let newCenter: Point
+            
+            if (isOnCircleRing) {
+              newCenter = {
+                x: startCenter.x + dx + circleEdgeOffset.x,
+                y: startCenter.y + dy + circleEdgeOffset.y
+              }
+            } else {
+              newCenter = {
+                x: startCenter.x + dx,
+                y: startCenter.y + dy
+              }
+              if (snapToGridEnabled) {
+                newCenter = snapPointToGrid(newCenter, POSITION_SNAP_INCREMENT)
+              }
             }
             updates.set(id, { center: newCenter })
           }
           updateShapes(updates)
         } else {
+          // Single shape touch move
           let newCenter = {
             x: dragState.startCenter.x + dx,
             y: dragState.startCenter.y + dy
           }
-          if (snapToGridEnabled) {
+          
+          const otherCircles = circles.filter(c => c.id !== dragState.shapeId)
+          
+          // Circle edge snapping
+          if (circleSnappingEnabled) {
+            const edgeSnapResult = computeCircleEdgeSnap(
+              newCenter,
+              shape.radius,
+              otherCircles,
+              zoom,
+              CIRCLE_EDGE_SNAP_THRESHOLD
+            )
+            
+            if (edgeSnapResult.isOnRing && edgeSnapResult.snappedToCircle && edgeSnapResult.snapAngle !== null) {
+              newCenter = edgeSnapResult.snappedCenter
+              
+              // Check for sticky grid points on the ring
+              const stickyGridPoint = findStickyGridPointOnRing(
+                edgeSnapResult.snappedToCircle.center,
+                shape.radius + edgeSnapResult.snappedToCircle.radius,
+                edgeSnapResult.snapAngle,
+                POSITION_SNAP_INCREMENT,
+                CIRCLE_EDGE_GRID_SNAP_THRESHOLD,
+                zoom
+              )
+              
+              if (stickyGridPoint) {
+                newCenter = stickyGridPoint
+              }
+            } else if (snapToGridEnabled) {
+              newCenter = snapPointToGrid(newCenter, POSITION_SNAP_INCREMENT)
+            }
+          } else if (snapToGridEnabled) {
             newCenter = snapPointToGrid(newCenter, POSITION_SNAP_INCREMENT)
           }
+          
           updateShape(dragState.shapeId, { center: newCenter })
         }
       } else if (dragState.mode === 'scale') {
@@ -2012,6 +2274,7 @@ export function useCanvasInteraction(
     
     // End drag state
     if (dragState && ts.touches.size === 0) {
+      resetCircleEdgeSnapState()
       setDragState(null)
       clearActiveGuides()
     }
@@ -2038,6 +2301,7 @@ export function useCanvasInteraction(
     
     const handleGlobalMouseUp = () => {
       if (dragState) {
+        resetCircleEdgeSnapState()
         setDragState(null)
       }
     }

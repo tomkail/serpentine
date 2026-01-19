@@ -19,6 +19,8 @@ export function useKeyboardShortcuts() {
   
   const snapToGrid = useSettingsStore(state => state.snapToGrid)
   const toggleSnap = useSettingsStore(state => state.toggleSnap)
+  const circleSnapping = useSettingsStore(state => state.circleSnapping)
+  const toggleCircleSnapping = useSettingsStore(state => state.toggleCircleSnapping)
   const measurementMode = useSettingsStore(state => state.measurementMode)
   const cycleMeasurementMode = useSettingsStore(state => state.cycleMeasurementMode)
   const showGrid = useSettingsStore(state => state.showGrid)
@@ -122,7 +124,14 @@ export function useKeyboardShortcuts() {
       // Toggle snap
       if (e.key === 's' && !isMod) {
         toggleSnap()
-        info(`Snap: ${!snapToGrid ? 'ON' : 'OFF'}`)
+        info(`Grid Snap: ${!snapToGrid ? 'ON' : 'OFF'}`)
+        return
+      }
+      
+      // Toggle circle snapping
+      if (e.key === 'c' && !isMod) {
+        toggleCircleSnapping()
+        info(`Circle Snap: ${!circleSnapping ? 'ON' : 'OFF'}`)
         return
       }
       
@@ -186,6 +195,8 @@ export function useKeyboardShortcuts() {
     selectAll,
     snapToGrid,
     toggleSnap,
+    circleSnapping,
+    toggleCircleSnapping,
     measurementMode,
     cycleMeasurementMode,
     showGrid,

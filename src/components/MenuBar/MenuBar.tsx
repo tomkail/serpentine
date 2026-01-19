@@ -15,7 +15,10 @@ import styles from './MenuBar.module.css'
 export function MenuBar() {
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const fileName = useDocumentStore(state => state.fileName)
+  const snapToGrid = useSettingsStore(state => state.snapToGrid)
   const toggleSnap = useSettingsStore(state => state.toggleSnap)
+  const circleSnapping = useSettingsStore(state => state.circleSnapping)
+  const toggleCircleSnapping = useSettingsStore(state => state.toggleCircleSnapping)
   const cycleMeasurementMode = useSettingsStore(state => state.cycleMeasurementMode)
   const toggleGrid = useSettingsStore(state => state.toggleGrid)
   const showSvgPreview = useSettingsStore(state => state.showSvgPreview)
@@ -92,6 +95,11 @@ export function MenuBar() {
   
   const handleToggleSnap = () => {
     toggleSnap()
+    closeMenu()
+  }
+  
+  const handleToggleCircleSnapping = () => {
+    toggleCircleSnapping()
     closeMenu()
   }
   
@@ -259,7 +267,16 @@ export function MenuBar() {
           <MenuItem label="Reset View" shortcut="0" onClick={handleResetView} />
           <div style={{ height: 1, background: 'var(--menu-border)', margin: '4px 0' }} />
           <MenuItem label="Toggle Grid" shortcut="G" onClick={handleToggleGrid} />
-          <MenuItem label="Toggle Snap" shortcut="S" onClick={handleToggleSnap} />
+          <MenuItem 
+            label={`${snapToGrid ? '✓ ' : '   '}Grid Snap`} 
+            shortcut="S" 
+            onClick={handleToggleSnap} 
+          />
+          <MenuItem 
+            label={`${circleSnapping ? '✓ ' : '   '}Circle Snap`} 
+            shortcut="C" 
+            onClick={handleToggleCircleSnapping} 
+          />
           <MenuItem label="Cycle Measurements" shortcut="M" onClick={handleCycleMeasurements} />
           <div style={{ height: 1, background: 'var(--menu-border)', margin: '4px 0' }} />
           <MenuItem 

@@ -73,6 +73,30 @@ export function SmartGuidesIcon({ size = 16, className, color = 'currentColor' }
   )
 }
 
+/**
+ * Circle Snap Icon - Two circles touching at their edges
+ * Shows circle-to-circle edge snapping
+ */
+export function CircleSnapIcon({ size = 16, className, color = 'currentColor' }: IconProps) {
+  return (
+    <svg 
+      width={size} 
+      height={size} 
+      viewBox="0 0 16 16" 
+      fill="none" 
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Left circle */}
+      <circle cx="5" cy="8" r="4" stroke={color} strokeWidth="1.5" fill="none" />
+      {/* Right circle (touching) */}
+      <circle cx="12.5" cy="8" r="2.5" stroke={color} strokeWidth="1.5" fill="none" />
+      {/* Contact point indicator */}
+      <circle cx="9.25" cy="8" r="0.75" fill={color} />
+    </svg>
+  )
+}
+
 // ============================================================================
 // CUSTOM PATH ICONS
 // These are specialized for the vector path editor and don't have good

@@ -7,6 +7,7 @@ interface SettingsState {
   // State
   snapToGrid: boolean
   smartGuides: boolean  // Show alignment guides when dragging
+  circleSnapping: boolean  // Snap circles to edges of other circles
   gridSize: number
   measurementMode: MeasurementMode
   showGrid: boolean
@@ -18,6 +19,8 @@ interface SettingsState {
   setSnapToGrid: (enabled: boolean) => void
   toggleSmartGuides: () => void
   setSmartGuides: (enabled: boolean) => void
+  toggleCircleSnapping: () => void
+  setCircleSnapping: (enabled: boolean) => void
   setGridSize: (size: number) => void
   cycleMeasurementMode: () => void
   setMeasurementMode: (mode: MeasurementMode) => void
@@ -34,6 +37,7 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       snapToGrid: true,
       smartGuides: true,
+      circleSnapping: true,
       gridSize: DEFAULT_GRID_SIZE,
       measurementMode: 'clean',
       showGrid: true,
@@ -51,6 +55,12 @@ export const useSettingsStore = create<SettingsState>()(
       })),
       
       setSmartGuides: (enabled) => set({ smartGuides: enabled }),
+      
+      toggleCircleSnapping: () => set((state) => ({
+        circleSnapping: !state.circleSnapping
+      })),
+      
+      setCircleSnapping: (enabled) => set({ circleSnapping: enabled }),
       
       setGridSize: (size) => set({
         gridSize: Math.max(MIN_GRID_SIZE, Math.min(MAX_GRID_SIZE, size))
@@ -82,6 +92,7 @@ export const useSettingsStore = create<SettingsState>()(
       partialize: (state) => ({
         snapToGrid: state.snapToGrid,
         smartGuides: state.smartGuides,
+        circleSnapping: state.circleSnapping,
         gridSize: state.gridSize,
         measurementMode: state.measurementMode,
         showGrid: state.showGrid,

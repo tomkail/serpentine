@@ -515,6 +515,13 @@ export interface TangentHandleInfo {
 }
 
 /**
+ * Fixed base angles for containment situations (in radians)
+ * When one circle contains another, offsets are relative to these fixed angles
+ */
+const CONTAINMENT_ENTRY_BASE = Math.PI  // 180° - pointing left
+const CONTAINMENT_EXIT_BASE = 0          // 0° - pointing right
+
+/**
  * Compute tangent handle information for a circle in the path
  */
 export function computeTangentHandleInfo(
@@ -558,25 +565,32 @@ export function computeTangentHandleInfo(
   
   if (!entryTangent || !exitTangent) return null
   
-  // Base angles from tangent computation
-  let baseEntryAngle = entryTangent.angle2
-  let baseExitAngle = exitTangent.angle1
+  // Check for containment situations
+  const entryIsContainment = entryTangent.isContainment ?? false
+  const exitIsContainment = exitTangent.isContainment ?? false
   
-  // For open paths with useStartPoint/useEndPoint enabled, use opposite side of the circle
-  // instead of calculating from the wrap-around tangent (which doesn't exist logically)
-  if (!closedPath && isFirst && useStartPoint) {
-    // First circle in open path: set entry angle opposite to exit angle
-    baseEntryAngle = baseExitAngle + Math.PI
-  }
-  if (!closedPath && isLast && useEndPoint) {
-    // Last circle in open path: set exit angle opposite to entry angle
-    baseExitAngle = baseEntryAngle + Math.PI
-  }
+  // Base angles: use fixed base for containment, tangent angles otherwise
+  let baseEntryAngle = entryIsContainment ? CONTAINMENT_ENTRY_BASE : entryTangent.angle2
+  let baseExitAngle = exitIsContainment ? CONTAINMENT_EXIT_BASE : exitTangent.angle1
   
   const entryOffsetAmount = circle.entryOffset ?? 0
   const exitOffsetAmount = circle.exitOffset ?? 0
   const offsetDir = clockwise ? 1 : -1
   
+  // For open paths with useStartPoint/useEndPoint enabled:
+  // - Normal case: use opposite side of the circle (derived from the other angle)
+  // - Containment case: use independent fixed base angles (both are independently controllable)
+  if (!closedPath && isFirst && useStartPoint && !exitIsContainment) {
+    // First circle in open path (non-containment): entry is opposite to exit
+    baseEntryAngle = baseExitAngle + Math.PI
+  }
+  if (!closedPath && isLast && useEndPoint && !entryIsContainment) {
+    // Last circle in open path (non-containment): exit is opposite to entry
+    baseExitAngle = baseEntryAngle + Math.PI
+  }
+  
+  // Compute actual angles with offsets
+  // Each angle uses its own offset (no derived logic for containment)
   const entryAngle = baseEntryAngle + entryOffsetAmount * offsetDir
   const exitAngle = baseExitAngle + exitOffsetAmount * offsetDir
   

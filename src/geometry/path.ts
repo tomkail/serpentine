@@ -678,18 +678,55 @@ export function computeTangentHull(
       continue
     }
     
+    // Check for containment situations (one circle inside another)
+    // In containment, offsets are relative to FIXED base angles:
+    // - Entry base angle: π (180°, pointing left)
+    // - Exit base angle: 0 (pointing right)
+    const prevIsContainment = prevTangent?.isContainment ?? false
+    const currIsContainment = currTangent?.isContainment ?? false
+    
+    // Fixed base angles for containment (in radians)
+    const CONTAINMENT_ENTRY_BASE = Math.PI  // 180° - pointing left
+    const CONTAINMENT_EXIT_BASE = 0          // 0° - pointing right
+    
+    // Get offset amounts
+    const entryOffsetAmount = circle.entryOffset ?? 0
+    const exitOffsetAmount = circle.exitOffset ?? 0
+    const offsetDir = clockwise ? 1 : -1
+    
     // Determine entry angle
     // For open paths with useStartPoint on first circle: entry is 180° opposite exit
     // This must be checked BEFORE prevTangent to avoid using the wrap-around tangent
     let entryAngle: number
-    if (!closed && isFirst && useStartPoint && currTangent !== null) {
+    if (prevIsContainment) {
+      // Containment case: offset from fixed base angle (π)
+      entryAngle = CONTAINMENT_ENTRY_BASE + entryOffsetAmount * offsetDir
+    } else if (!closed && isFirst && useStartPoint && currTangent !== null) {
       // First circle in open path: set entry angle opposite to exit angle
-      entryAngle = currTangent.angle1 + Math.PI
+      if (currIsContainment) {
+        entryAngle = CONTAINMENT_EXIT_BASE + exitOffsetAmount * offsetDir + Math.PI
+      } else {
+        entryAngle = currTangent.angle1 + Math.PI
+        if (entryOffsetAmount !== 0) {
+          entryAngle += entryOffsetAmount * offsetDir
+        }
+      }
     } else if (prevTangent !== null) {
       entryAngle = prevTangent.angle2
+      // Apply entry offset as relative (normal case)
+      if (entryOffsetAmount !== 0) {
+        entryAngle += entryOffsetAmount * offsetDir
+      }
     } else if (currTangent !== null) {
       // No prev tangent but we have curr tangent - use opposite of exit
-      entryAngle = currTangent.angle1 + Math.PI
+      if (currIsContainment) {
+        entryAngle = CONTAINMENT_EXIT_BASE + exitOffsetAmount * offsetDir + Math.PI
+      } else {
+        entryAngle = currTangent.angle1 + Math.PI
+        if (entryOffsetAmount !== 0) {
+          entryAngle += entryOffsetAmount * offsetDir
+        }
+      }
     } else {
       // Can't determine entry angle
       needsMoveTo = true
@@ -700,11 +737,31 @@ export function computeTangentHull(
     // For open paths with useEndPoint on last circle: exit is 180° opposite entry
     // This must be checked BEFORE currTangent to avoid using the wrap-around tangent
     let exitAngle: number
-    if (!closed && isLast && useEndPoint && prevTangent !== null) {
-      // Last circle in open path: set exit angle opposite to entry angle
-      exitAngle = prevTangent.angle2 + Math.PI
+    if (currIsContainment) {
+      // Containment case: offset from fixed base angle (0)
+      exitAngle = CONTAINMENT_EXIT_BASE + exitOffsetAmount * offsetDir
+    } else if (!closed && isLast && useEndPoint) {
+      // Last circle in open path
+      if (prevIsContainment) {
+        // Containment on entry side: exit uses independent fixed base angle (0)
+        // NOT derived from entry - both are independently controllable
+        exitAngle = CONTAINMENT_EXIT_BASE + exitOffsetAmount * offsetDir
+      } else if (prevTangent !== null) {
+        // Normal case: exit is opposite to entry angle
+        exitAngle = prevTangent.angle2 + Math.PI
+        if (exitOffsetAmount !== 0) {
+          exitAngle += exitOffsetAmount * offsetDir
+        }
+      } else {
+        // Fallback
+        exitAngle = entryAngle + Math.PI
+      }
     } else if (currTangent !== null) {
       exitAngle = currTangent.angle1
+      // Apply exit offset as relative (normal case)
+      if (exitOffsetAmount !== 0) {
+        exitAngle += exitOffsetAmount * offsetDir
+      }
     } else if (prevTangent !== null) {
       // No curr tangent but we have prev tangent - use opposite of entry
       exitAngle = entryAngle + Math.PI
@@ -712,18 +769,6 @@ export function computeTangentHull(
       // Can't determine exit angle
       needsMoveTo = true
       continue
-    }
-    
-    // Apply separate entry/exit offsets to this circle's contact points
-    const entryOffsetAmount = circle.entryOffset ?? 0
-    const exitOffsetAmount = circle.exitOffset ?? 0
-    const offsetDir = clockwise ? 1 : -1
-    
-    if (entryOffsetAmount !== 0) {
-      entryAngle += entryOffsetAmount * offsetDir
-    }
-    if (exitOffsetAmount !== 0) {
-      exitAngle += exitOffsetAmount * offsetDir
     }
     
     // Get tangent length multipliers (default to 1.0)
@@ -784,21 +829,33 @@ export function computeTangentHull(
     
     // Calculate the entry point on the NEXT circle (potentially with its own offset)
     const nextClockwise = (nextCircle.direction ?? 'cw') === 'cw'
-    let nextEntryAngle = currTangent.angle2
+    const nextOffsetDir = nextClockwise ? 1 : -1
     const nextEntryOffset = nextCircle.entryOffset ?? 0
-    if (nextEntryOffset !== 0) {
-      const nextOffsetDir = nextClockwise ? 1 : -1
-      nextEntryAngle += nextEntryOffset * nextOffsetDir
+    
+    // For containment: offset from fixed base angle (π)
+    // For normal: offset relative to tangent angle
+    let nextEntryAngle: number
+    if (currIsContainment) {
+      // Containment: offset from fixed entry base angle
+      nextEntryAngle = CONTAINMENT_ENTRY_BASE + nextEntryOffset * nextOffsetDir
+    } else {
+      nextEntryAngle = currTangent.angle2
+      if (nextEntryOffset !== 0) {
+        nextEntryAngle += nextEntryOffset * nextOffsetDir
+      }
     }
     const nextEntryPoint = pointOnCircle(nextCircle.center, nextCircle.radius, nextEntryAngle)
     
     // Get tangent length multiplier for next circle's entry
     const nextEntryTangentLengthMult = nextCircle.entryTangentLength ?? DEFAULT_TANGENT_LENGTH
     
-    // Check if either circle has a tangent offset or custom tangent length - if so, we need a bezier
+    // Check if we need a bezier connector:
+    // - Any offsets present
+    // - Custom tangent lengths
+    // - Containment situation (always use bezier for smooth curves)
     const hasOffsets = exitOffsetAmount !== 0 || nextEntryOffset !== 0
     const hasCustomLengths = exitTangentLengthMult !== DEFAULT_TANGENT_LENGTH || nextEntryTangentLengthMult !== DEFAULT_TANGENT_LENGTH
-    const needsBezierConnector = hasOffsets || hasCustomLengths
+    const needsBezierConnector = hasOffsets || hasCustomLengths || currIsContainment
     
     if (needsBezierConnector) {
       // Create bezier connector that maintains tangent continuity

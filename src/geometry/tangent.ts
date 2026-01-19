@@ -7,6 +7,7 @@ export interface TangentResult {
   angle1: number  // Angle on first circle where tangent touches
   angle2: number  // Angle on second circle where tangent touches
   isIntersection?: boolean  // True if this is an intersection point (not a true tangent)
+  isContainment?: boolean   // True if one circle contains the other (use absolute offsets)
 }
 
 /**
@@ -20,6 +21,11 @@ export interface TangentResult {
  *   perpendicular to both radii at those points
  * - cos(touchAngle - centerAngle) = (r1 - r2) / d
  * 
+ * When one circle contains the other (no valid external tangent exists),
+ * returns a "containment" result with default angles pointing toward each other.
+ * The path computation should use the circles' entry/exit offsets as absolute
+ * angles in this case, and connect with bezier curves.
+ * 
  * @param side - 'right' means the tangent on the right when traveling from c1 to c2
  */
 export function externalTangent(
@@ -29,13 +35,25 @@ export function externalTangent(
 ): TangentResult | null {
   const d = distance(c1, c2)
   
-  // Circles are too close or one contains the other
-  if (d < Math.abs(r1 - r2) + 0.001) {
-    return null
-  }
-  
   // Angle from c1 to c2
   const theta = angle(c1, c2)
+  
+  // One circle contains the other - return containment result
+  // The path computation will use entry/exit offsets as absolute angles
+  if (d < Math.abs(r1 - r2) + 0.001) {
+    // Default angles: point toward/away from each other along the center line
+    // These will be replaced by absolute entry/exit offsets in path computation
+    const angle1 = theta  // c1 exit toward c2
+    const angle2 = theta + Math.PI  // c2 entry from direction of c1
+    
+    return {
+      p1: pointOnCircle(c1, r1, angle1),
+      p2: pointOnCircle(c2, r2, angle2),
+      angle1: normalizeAngle(angle1),
+      angle2: normalizeAngle(angle2),
+      isContainment: true
+    }
+  }
   
   // For external tangent with different radii:
   // cos(touchAngle - theta) = (r1 - r2) / d
@@ -43,7 +61,14 @@ export function externalTangent(
   const cosDelta = (r1 - r2) / d
   
   if (Math.abs(cosDelta) > 1) {
-    return null
+    // This shouldn't happen given the check above, but safety first
+    return {
+      p1: pointOnCircle(c1, r1, theta),
+      p2: pointOnCircle(c2, r2, theta + Math.PI),
+      angle1: normalizeAngle(theta),
+      angle2: normalizeAngle(theta + Math.PI),
+      isContainment: true
+    }
   }
   
   const delta = Math.acos(cosDelta)
@@ -66,6 +91,13 @@ export function externalTangent(
 }
 
 /**
+ * Tolerance for considering circles as "touching" in world units.
+ * This is used to decide when to use intersection-based path (overlapping/touching)
+ * vs normal internal tangent (separate circles).
+ */
+const TOUCHING_TOLERANCE = 0.5
+
+/**
  * Calculate internal (cross) tangent line between two circles.
  * 
  * Internal tangents cross between the circles - used when circles
@@ -76,9 +108,10 @@ export function externalTangent(
  * - Touch points are on opposite sides of each circle relative to the tangent direction
  * - cos(touchAngle1 - theta) = (r1 + r2) / d (approximately, for the crossing point)
  * 
- * When circles overlap (no true internal tangent exists), this function returns
- * the intersection point as a fallback - the path will go to the intersection point
- * on the first circle and continue from the intersection point on the second circle.
+ * When circles overlap or are touching (within TOUCHING_TOLERANCE), this function
+ * returns the intersection/tangent point as a fallback - the path will go to the
+ * intersection point on the first circle and continue from the same point on the
+ * second circle.
  * 
  * @param side - determines which of the two internal tangents to use
  * @param useEntryIntersection - if true, use the "entry" intersection instead of "exit" (for mirrored shapes)
@@ -90,75 +123,119 @@ export function internalTangent(
   useEntryIntersection: boolean = false
 ): TangentResult | null {
   const d = distance(c1, c2)
+  const sumRadii = r1 + r2
   
   // Angle from c1 to c2
   const theta = angle(c1, c2)
   
-  // Circles overlap - use intersection point as fallback
-  if (d < r1 + r2 + 0.001) {
-    const intersections = circleIntersections(c1, r1, c2, r2)
-    
-    if (!intersections || intersections.length === 0) {
-      // One circle contains the other or they're concentric - no valid connection
-      return null
-    }
-    
-    // Choose the appropriate intersection point based on 'side'
-    // For internal tangent with 'right' side, we want the intersection point
-    // that's on the right when looking from c1 to c2
-    // For mirrored shapes, we flip the selection (use entry instead of exit)
-    let intersectionPoint: Point
-    let selectedIdx = 0
-    
-    if (intersections.length === 1) {
-      // Circles are tangent - only one intersection point
-      intersectionPoint = intersections[0]
-    } else {
-      // Two intersection points - choose based on side relative to center line
-      // Calculate which point is on which side using cross product
-      const dx = c2.x - c1.x
-      const dy = c2.y - c1.y
+  // Check if circles actually overlap or touch (use actual intersection)
+  // or if they're very close (within TOUCHING_TOLERANCE) - use synthetic tangent point
+  const actuallyOverlapping = d <= sumRadii
+  const nearlyTouching = d < sumRadii + TOUCHING_TOLERANCE
+  
+  if (nearlyTouching) {
+    if (actuallyOverlapping) {
+      // Circles actually overlap - use real intersection points
+      const intersections = circleIntersections(c1, r1, c2, r2)
       
-      // Cross product to determine which side each intersection is on
-      const cross0 = dx * (intersections[0].y - c1.y) - dy * (intersections[0].x - c1.x)
-      
-      // For REFLECTION sectors (odd sector numbers), flip the selection
-      // because the path direction is reversed in reflections.
-      // For ROTATION sectors (even sector numbers), don't flip.
-      // The useEntryIntersection flag now indicates whether the source circle
-      // is from a reflection sector.
-      const effectiveSide = useEntryIntersection 
-        ? (side === 'right' ? 'left' : 'right')
-        : side
-      
-      // Positive cross = left side, negative cross = right side
-      if (effectiveSide === 'right') {
-        selectedIdx = cross0 < 0 ? 0 : 1
-      } else {
-        selectedIdx = cross0 > 0 ? 0 : 1
+      if (!intersections || intersections.length === 0) {
+        // One circle contains the other or they're concentric
+        // Return a containment result - path computation will use absolute offsets
+        const angle1 = theta  // Default: exit toward c2
+        const angle2 = theta + Math.PI  // Default: entry from direction of c1
+        
+        return {
+          p1: pointOnCircle(c1, r1, angle1),
+          p2: pointOnCircle(c2, r2, angle2),
+          angle1: normalizeAngle(angle1),
+          angle2: normalizeAngle(angle2),
+          isContainment: true
+        }
       }
-      intersectionPoint = intersections[selectedIdx]
-    }
-    
-    // Calculate angles from each center to the intersection point
-    const angle1 = angle(c1, intersectionPoint)
-    const angle2 = angle(c2, intersectionPoint)
-    
-    return {
-      p1: intersectionPoint,
-      p2: intersectionPoint,  // Same point - they meet at the intersection
-      angle1: normalizeAngle(angle1),
-      angle2: normalizeAngle(angle2),
-      isIntersection: true
+      
+      // Choose the appropriate intersection point based on 'side'
+      // For internal tangent with 'right' side, we want the intersection point
+      // that's on the right when looking from c1 to c2
+      // For mirrored shapes, we flip the selection (use entry instead of exit)
+      let intersectionPoint: Point
+      
+      if (intersections.length === 1) {
+        // Circles are tangent - only one intersection point
+        intersectionPoint = intersections[0]
+      } else {
+        // Two intersection points - choose based on side relative to center line
+        // Calculate which point is on which side using cross product
+        const dx = c2.x - c1.x
+        const dy = c2.y - c1.y
+        
+        // Cross product to determine which side each intersection is on
+        const cross0 = dx * (intersections[0].y - c1.y) - dy * (intersections[0].x - c1.x)
+        
+        // For REFLECTION sectors (odd sector numbers), flip the selection
+        // because the path direction is reversed in reflections.
+        // For ROTATION sectors (even sector numbers), don't flip.
+        // The useEntryIntersection flag now indicates whether the source circle
+        // is from a reflection sector.
+        const effectiveSide = useEntryIntersection 
+          ? (side === 'right' ? 'left' : 'right')
+          : side
+        
+        // Positive cross = left side, negative cross = right side
+        const selectedIdx = effectiveSide === 'right'
+          ? (cross0 < 0 ? 0 : 1)
+          : (cross0 > 0 ? 0 : 1)
+        intersectionPoint = intersections[selectedIdx]
+      }
+      
+      // Calculate angles from each center to the intersection point
+      const angle1 = angle(c1, intersectionPoint)
+      const angle2 = angle(c2, intersectionPoint)
+      
+      return {
+        p1: intersectionPoint,
+        p2: intersectionPoint,  // Same point - they meet at the intersection
+        angle1: normalizeAngle(angle1),
+        angle2: normalizeAngle(angle2),
+        isIntersection: true
+      }
+    } else {
+      // Circles are very close but not actually overlapping
+      // Create a direct connection on the line between centers
+      // This ensures smooth transition as circles approach each other
+      
+      // Exit from c1: point on c1's surface toward c2
+      const exitPoint: Point = {
+        x: c1.x + (c2.x - c1.x) * (r1 / d),
+        y: c1.y + (c2.y - c1.y) * (r1 / d)
+      }
+      
+      // Entry to c2: point on c2's surface toward c1
+      const entryPoint: Point = {
+        x: c2.x - (c2.x - c1.x) * (r2 / d),
+        y: c2.y - (c2.y - c1.y) * (r2 / d)
+      }
+      
+      // Angles for exit and entry points
+      const exitAngle = theta  // Directly toward c2
+      const entryAngle = theta + Math.PI  // Directly toward c1 (opposite direction)
+      
+      return {
+        p1: exitPoint,
+        p2: entryPoint,
+        angle1: normalizeAngle(exitAngle),
+        angle2: normalizeAngle(entryAngle),
+        isIntersection: true  // Mark as intersection-style (direct connection)
+      }
     }
   }
   
-  // Normal case: circles don't overlap, calculate true internal tangent
+  // Normal case: circles are well separated, calculate true internal tangent
   
   // Simpler approach: sin(offset) = (r1 + r2) / d
-  const sinOffset = (r1 + r2) / d
+  const sinOffset = sumRadii / d
   
   if (sinOffset > 1) {
+    // This shouldn't happen given the checks above, but safety first
     return null
   }
   
