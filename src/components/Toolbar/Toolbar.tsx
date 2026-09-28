@@ -5,6 +5,7 @@ import { useDocumentStore, MIRROR_PRESETS } from '../../stores/documentStore'
 import { useDebugStore } from '../../stores/debugStore'
 import { useHistoryStore, undo, redo } from '../../stores/historyStore'
 import { useThemeStore } from '../../stores/themeStore'
+import { usePrintStore } from '../../stores/printStore'
 import { fitToView } from '../../utils/viewportActions'
 import { createNewDocument, saveDocument, loadDocument, exportSvg, loadPreset } from '../../utils/fileIO'
 import { presets } from '../../utils/presets'
@@ -261,6 +262,7 @@ export function Toolbar() {
   const handleSave = () => { saveDocument(); closeMenu() }
   const handleLoad = () => { loadDocument(); closeMenu() }
   const handleExportSvg = () => { exportSvg(); closeMenu() }
+  const handlePrint = () => { usePrintStore.getState().open(); closeMenu() }
   const handleLoadPreset = (index: number) => {
     const preset = presets[index]
     if (preset) loadPreset(preset)
@@ -289,6 +291,7 @@ export function Toolbar() {
           <MenuItem label="Save" shortcut="⌘S" onClick={handleSave} />
           <MenuDivider />
           <MenuItem label="Export SVG..." shortcut="⌘E" onClick={handleExportSvg} />
+          <MenuItem label="Print / PDF..." shortcut="⌘P" onClick={handlePrint} />
           <MenuDivider />
           <MenuLabel>Test Presets</MenuLabel>
           {presets.map((preset, index) => (
