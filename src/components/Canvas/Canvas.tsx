@@ -136,6 +136,9 @@ export function Canvas() {
       console.log(`%c[Canvas] render() EARLY RETURN - canvas: ${!!canvas}, ctx: ${!!ctx}`, 'color: #ff0000; font-weight: bold;')
       return
     }
+    // Canvas has no size yet (before layout, or mid hot reload) - nothing to draw,
+    // and zero-size canvases make pattern creation throw
+    if (canvas.width === 0 || canvas.height === 0) return
     console.log(`%c[Canvas] render() starting work, canvas: ${canvas.width}x${canvas.height}`, 'color: #888;')
     
     // Track timing for first render (always on for debugging startup)

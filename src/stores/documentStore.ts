@@ -453,7 +453,10 @@ export const useDocumentStore = create<DocumentState>()(
       merge: (persistedState, currentState) => {
         console.log('%c[Store] documentStore hydrating from localStorage...', 'color: #ffd93d;')
         const hydrateStart = performance.now()
-        
+
+        // Nothing persisted yet (fresh browser / cleared storage) - keep defaults
+        if (!persistedState) return currentState
+
         const persisted = persistedState as Partial<DocumentState> & { 
           globalTension?: number
           globalFling?: number
