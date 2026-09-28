@@ -1,0 +1,16 @@
+.sizeRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.sizeRow > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.times {
+  padding-top: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+}

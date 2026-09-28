@@ -6,6 +6,7 @@ import { useNotificationStore } from '../stores/notificationStore'
 import { useHistoryStore, undo, redo } from '../stores/historyStore'
 import { createNewDocument, saveDocument, loadDocument, exportSvg } from '../utils/fileIO'
 import { fitToView, resetView } from '../utils/viewportActions'
+import { usePrintStore } from '../stores/printStore'
 
 export function useKeyboardShortcuts() {
   const shapes = useDocumentStore(state => state.shapes)
@@ -60,6 +61,12 @@ export function useKeyboardShortcuts() {
       if (isMod && e.key === 'o') {
         e.preventDefault()
         loadDocument()
+        return
+      }
+      
+      if (isMod && e.key === 'p') {
+        e.preventDefault()
+        usePrintStore.getState().open()
         return
       }
       

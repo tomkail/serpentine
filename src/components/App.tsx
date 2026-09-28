@@ -4,6 +4,8 @@ import { FloatingPreview } from './FloatingPreview/FloatingPreview'
 import { Toolbar } from './Toolbar/Toolbar'
 import { ModifierBar } from './ModifierBar/ModifierBar'
 import { Notifications } from './Notifications/Notifications'
+import { PrintDialog } from './PrintDialog/PrintDialog'
+import { usePrintStore } from '../stores/printStore'
 import { ErrorBoundary } from './ErrorBoundary/ErrorBoundary'
 import { ThemeProvider } from './ThemeProvider'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
@@ -19,6 +21,7 @@ function AppContent() {
   
   // Enable global keyboard shortcuts
   useKeyboardShortcuts()
+  const printOpen = usePrintStore(state => state.isOpen)
   
   // Initialize undo/redo history tracking
   useEffect(() => {
@@ -48,6 +51,7 @@ function AppContent() {
       <Toolbar />
       <ModifierBar />
       <Notifications />
+      {printOpen && <PrintDialog />}
     </div>
   )
 }
